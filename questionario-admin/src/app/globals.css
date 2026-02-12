@@ -74,4 +74,33 @@
   .card-footer {
     @apply flex items-center p-6 pt-0;
   }
+
+  /* Glossário HTML content */
+  .glossario-html {
+    @apply text-sm text-blue-800 leading-relaxed;
+  }
+  .glossario-html p {
+    @apply my-1;
+  }
+  .glossario-html strong {
+    @apply font-semibold text-blue-900;
+  }
+  .glossario-html em {
+    @apply italic;
+  }
+  .glossario-html ul, .glossario-html ol {
+    @apply ml-4 my-1;
+  }
+  .glossario-html ul {
+    @apply list-disc;
+  }
+  .glossario-html ol {
+    @apply list-decimal;
+  }
+  .glossario-html li {
+    @apply my-0.5;
+  }
+  .glossario-html a {
+    @apply text-blue-600 underline hover:text-blue-800;
+  }
 }

@@ -1,5 +1,9 @@
 // src/lib/questionarios/repository.ts
 // Camada de dados para CRUD de questionários
+//
+// IMPORTANTE: O vínculo pergunta ↔ questionário é definido pela tabela
+// questionario_pergunta (com FLG_ATIVO = 'S'), NÃO pelo campo direto
+// SEQ_QUESTIONARIO em pergunta (que pode não estar preenchido no legado).
 
 import { prisma } from '@/lib/db';
 import type {
@@ -9,6 +13,7 @@ import type {
   EditarQuestionarioInput,
   StatusPublicacao,
   PerguntaResumo,
+  CategoriaGrupo,
 } from '@/lib/types/questionario';
 
 // ============================================================================
@@ -42,6 +47,43 @@ export interface Escopo {
 }
 
 // ============================================================================
+// Helper: buscar perguntas de um questionário via questionario_pergunta
+// ============================================================================
+
+async function buscarPerguntasDoQuestionario(seqQuestionario: number) {
+  const vinculos = await prisma.questionarioPergunta.findMany({
+    where: {
+      SEQ_QUESTIONARIO: seqQuestionario,
+      FLG_ATIVO: 'S',
+    },
+    select: { SEQ_PERGUNTA: true },
+  });
+
+  if (vinculos.length === 0) return [];
+
+  const seqPerguntas = vinculos.map(v => v.SEQ_PERGUNTA);
+
+  return prisma.pergunta.findMany({
+    where: { SEQ_PERGUNTA: { in: seqPerguntas } },
+    orderBy: { NUM_ORDEM: 'asc' },
+    include: {
+      tipoFormato: true,
+      categoria: true,
+      _count: { select: { respostas: true } },
+    },
+  });
+}
+
+async function contarPerguntasDoQuestionario(seqQuestionario: number): Promise<number> {
+  return prisma.questionarioPergunta.count({
+    where: {
+      SEQ_QUESTIONARIO: seqQuestionario,
+      FLG_ATIVO: 'S',
+    },
+  });
+}
+
+// ============================================================================
 // Listagem
 // ============================================================================
 
@@ -69,9 +111,13 @@ export async function listarQuestionarios(
         tipoEscopo: true,
         _count: {
           select: {
-            perguntas: true,
             respostas: true,
+            questionarioPergunta: true,
           },
+        },
+        questionarioPergunta: {
+          where: { FLG_ATIVO: 'S' },
+          select: { SEQ_PERGUNTA: true },
         },
       },
       orderBy: [
@@ -91,7 +137,7 @@ export async function listarQuestionarios(
     SEQ_QUESTIONARIO_BASE: q.SEQ_QUESTIONARIO_BASE,
     DAT_CRIACAO_QUESTIONARIO: q.DAT_CRIACAO_QUESTIONARIO,
     DAT_PUBLICACAO: q.DAT_PUBLICACAO,
-    QTD_PERGUNTAS: q._count.perguntas,
+    QTD_PERGUNTAS: q.questionarioPergunta.length,
     QTD_RESPOSTAS: q._count.respostas,
     COD_ESCOPO_RESPOSTA: q.tipoEscopo?.COD_TIPO_ESCOPO as QuestionarioResumo['COD_ESCOPO_RESPOSTA'] ?? 'TRIBUNAL',
   }));
@@ -115,41 +161,61 @@ export async function buscarQuestionario(id: number): Promise<QuestionarioComple
     include: {
       periodicidade: true,
       tipoEscopo: true,
-      perguntas: {
-        orderBy: { NUM_ORDEM: 'asc' },
-        include: {
-          tipoFormato: true,
-          categoria: true,
-          _count: {
-            select: { respostas: true },
-          },
-        },
-      },
       _count: {
-        select: {
-          perguntas: true,
-          respostas: true,
-        },
+        select: { respostas: true },
       },
     },
   });
 
   if (!q) return null;
 
-  const perguntas: PerguntaResumo[] = q.perguntas.map(p => ({
-    SEQ_PERGUNTA: p.SEQ_PERGUNTA,
-    DSC_PERGUNTA: p.DSC_PERGUNTA,
-    COD_PERGUNTA: p.COD_PERGUNTA,
-    DSC_STATUS: p.DSC_STATUS as StatusPublicacao,
-    NUM_VERSAO: p.NUM_VERSAO,
-    NUM_ORDEM: p.NUM_ORDEM,
-    SEQ_PERGUNTA_BASE: p.SEQ_PERGUNTA_BASE,
-    SEQ_CATEGORIA_PERGUNTA: p.SEQ_CATEGORIA_PERGUNTA,
-    DSC_CATEGORIA_PERGUNTA: p.categoria?.DSC_CATEGORIA_PERGUNTA ?? null,
-    COD_TIPO_FORMATO_RESPOSTA: p.tipoFormato.COD_TIPO_FORMATO_RESPOSTA as PerguntaResumo['COD_TIPO_FORMATO_RESPOSTA'],
-    DSC_TIPO_FORMATO_RESPOSTA: p.tipoFormato.DSC_TIPO_FORMATO_RESPOSTA,
-    QTD_RESPOSTAS: p._count.respostas,
-  }));
+  // Buscar perguntas via tabela de vínculo
+  const perguntasDb = await buscarPerguntasDoQuestionario(id);
+  const qtdPerguntas = perguntasDb.length;
+
+  // Agrupar perguntas por categoria, ordenando por categoria.NUM_ORDEM
+  const categoriasMap = new Map<number | null, {
+    SEQ_CATEGORIA_PERGUNTA: number | null;
+    DSC_CATEGORIA_PERGUNTA: string;
+    NUM_ORDEM: number;
+    perguntas: PerguntaResumo[];
+  }>();
+
+  for (const p of perguntasDb) {
+    const catKey = p.SEQ_CATEGORIA_PERGUNTA;
+
+    if (!categoriasMap.has(catKey)) {
+      categoriasMap.set(catKey, {
+        SEQ_CATEGORIA_PERGUNTA: catKey,
+        DSC_CATEGORIA_PERGUNTA: p.categoria?.DSC_CATEGORIA_PERGUNTA ?? 'Sem categoria',
+        NUM_ORDEM: p.categoria?.NUM_ORDEM ?? 999999,
+        perguntas: [],
+      });
+    }
+
+    categoriasMap.get(catKey)!.perguntas.push({
+      SEQ_PERGUNTA: p.SEQ_PERGUNTA,
+      DSC_PERGUNTA: p.DSC_PERGUNTA,
+      COD_PERGUNTA: p.COD_PERGUNTA,
+      TXT_GLOSSARIO: p.TXT_GLOSSARIO,
+      DSC_STATUS: p.DSC_STATUS as StatusPublicacao,
+      NUM_VERSAO: p.NUM_VERSAO,
+      NUM_ORDEM: p.NUM_ORDEM,
+      SEQ_PERGUNTA_BASE: p.SEQ_PERGUNTA_BASE,
+      SEQ_CATEGORIA_PERGUNTA: p.SEQ_CATEGORIA_PERGUNTA,
+      DSC_CATEGORIA_PERGUNTA: p.categoria?.DSC_CATEGORIA_PERGUNTA ?? null,
+      COD_TIPO_FORMATO_RESPOSTA: p.tipoFormato.COD_TIPO_FORMATO_RESPOSTA as PerguntaResumo['COD_TIPO_FORMATO_RESPOSTA'],
+      DSC_TIPO_FORMATO_RESPOSTA: p.tipoFormato.DSC_TIPO_FORMATO_RESPOSTA,
+      QTD_RESPOSTAS: p._count.respostas,
+    });
+  }
+
+  // Ordenar categorias por NUM_ORDEM, perguntas dentro de cada categoria já vêm ordenadas
+  const categorias: CategoriaGrupo[] = Array.from(categoriasMap.values())
+    .sort((a, b) => a.NUM_ORDEM - b.NUM_ORDEM);
+
+  // Contar categorias reais (excluindo "Sem categoria")
+  const qtdCategorias = categorias.filter(c => c.SEQ_CATEGORIA_PERGUNTA !== null).length;
 
   return {
     SEQ_QUESTIONARIO: q.SEQ_QUESTIONARIO,
@@ -166,9 +232,10 @@ export async function buscarQuestionario(id: number): Promise<QuestionarioComple
     DSC_TIPO_PERIODICIDADE: q.periodicidade.DSC_TIPO_PERIODICIDADE_PERGUNTA,
     SEQ_ORGAO_ESCOPO: q.SEQ_ORGAO_ESCOPO,
     COD_ESCOPO_RESPOSTA: q.tipoEscopo?.COD_TIPO_ESCOPO as QuestionarioResumo['COD_ESCOPO_RESPOSTA'] ?? 'TRIBUNAL',
-    QTD_PERGUNTAS: q._count.perguntas,
+    QTD_PERGUNTAS: qtdPerguntas,
     QTD_RESPOSTAS: q._count.respostas,
-    perguntas,
+    QTD_CATEGORIAS: qtdCategorias,
+    categorias,
   };
 }
 
@@ -262,9 +329,8 @@ export async function excluirQuestionario(id: number): Promise<void> {
     throw new Error('Não é possível excluir questionário com respostas vinculadas');
   }
 
-  // Remover perguntas vinculadas e depois o questionário
+  // Remover vínculos na tabela de junção e depois o questionário
   await prisma.$transaction([
-    prisma.pergunta.deleteMany({ where: { SEQ_QUESTIONARIO: id } }),
     prisma.questionarioPergunta.deleteMany({ where: { SEQ_QUESTIONARIO: id } }),
     prisma.questionario.delete({ where: { SEQ_QUESTIONARIO: id } }),
   ]);
@@ -293,8 +359,15 @@ export async function publicarQuestionario(
 
   const agora = new Date();
 
-  // Publicar questionário + cascata nas perguntas
-  await prisma.$transaction([
+  // Buscar SEQ_PERGUNTAs vinculadas via tabela de junção
+  const vinculos = await prisma.questionarioPergunta.findMany({
+    where: { SEQ_QUESTIONARIO: id, FLG_ATIVO: 'S' },
+    select: { SEQ_PERGUNTA: true },
+  });
+  const seqPerguntas = vinculos.map(v => v.SEQ_PERGUNTA);
+
+  // Publicar questionário + cascata nas perguntas vinculadas
+  const ops = [
     prisma.questionario.update({
       where: { SEQ_QUESTIONARIO: id },
       data: {
@@ -303,18 +376,25 @@ export async function publicarQuestionario(
         USU_PUBLICACAO: usuario,
       },
     }),
-    prisma.pergunta.updateMany({
-      where: {
-        SEQ_QUESTIONARIO: id,
-        DSC_STATUS: 'RASCUNHO',
-      },
-      data: {
-        DSC_STATUS: 'PUBLICADO',
-        DAT_PUBLICACAO: agora,
-        USU_PUBLICACAO: usuario,
-      },
-    }),
-  ]);
+  ];
+
+  if (seqPerguntas.length > 0) {
+    ops.push(
+      prisma.pergunta.updateMany({
+        where: {
+          SEQ_PERGUNTA: { in: seqPerguntas },
+          DSC_STATUS: 'RASCUNHO',
+        },
+        data: {
+          DSC_STATUS: 'PUBLICADO',
+          DAT_PUBLICACAO: agora,
+          USU_PUBLICACAO: usuario,
+        },
+      }) as never // updateMany retorna BatchPayload, OK no $transaction
+    );
+  }
+
+  await prisma.$transaction(ops);
 }
 
 // ============================================================================
@@ -327,9 +407,6 @@ export async function criarNovaVersao(
 ): Promise<number> {
   const original = await prisma.questionario.findUnique({
     where: { SEQ_QUESTIONARIO: id },
-    include: {
-      perguntas: true,
-    },
   });
 
   if (!original) {
@@ -339,6 +416,9 @@ export async function criarNovaVersao(
   if (original.DSC_STATUS !== 'PUBLICADO') {
     throw new Error('Apenas questionários PUBLICADOS podem gerar nova versão');
   }
+
+  // Buscar perguntas via tabela de junção
+  const perguntasOriginais = await buscarPerguntasVinculadas(id);
 
   // Raiz = SEQ_QUESTIONARIO_BASE do original, ou o próprio SEQ se for a raiz
   const seqRaiz = original.SEQ_QUESTIONARIO_BASE ?? original.SEQ_QUESTIONARIO;
@@ -361,35 +441,80 @@ export async function criarNovaVersao(
     },
   });
 
-  // Copiar perguntas
-  if (original.perguntas.length > 0) {
-    for (const p of original.perguntas) {
-      const seqPerguntaRaiz = p.SEQ_PERGUNTA_BASE ?? p.SEQ_PERGUNTA;
-      await prisma.pergunta.create({
-        data: {
-          SEQ_PERGUNTA_BASE: seqPerguntaRaiz,
-          NUM_VERSAO: p.NUM_VERSAO + 1,
-          DSC_STATUS: 'RASCUNHO',
-          SEQ_QUESTIONARIO: novoQ.SEQ_QUESTIONARIO,
-          NUM_ORDEM: p.NUM_ORDEM,
-          SEQ_TIPO_VARIAVEL_PERGUNTA: p.SEQ_TIPO_VARIAVEL_PERGUNTA,
-          SEQ_TIPO_PERIODICIDADE_PERGUNTA: p.SEQ_TIPO_PERIODICIDADE_PERGUNTA,
-          SEQ_TIPO_FORMATO_RESPOSTA: p.SEQ_TIPO_FORMATO_RESPOSTA,
-          SEQ_CATEGORIA_PERGUNTA: p.SEQ_CATEGORIA_PERGUNTA,
-          DSC_PERGUNTA: p.DSC_PERGUNTA,
-          DSC_COMPLEMENTO_PERGUNTA: p.DSC_COMPLEMENTO_PERGUNTA,
-          COD_PERGUNTA: p.COD_PERGUNTA,
-          TXT_GLOSSARIO: p.TXT_GLOSSARIO,
-          FLG_RESPOSTA_AUTOMATICA: p.FLG_RESPOSTA_AUTOMATICA,
-          TXT_JSON_ARRAY_RESPOSTAS: p.TXT_JSON_ARRAY_RESPOSTAS,
-          USU_CRIACAO_PERGUNTA: usuario,
-          DAT_CRIACAO_PERGUNTA: new Date(),
-        },
-      });
-    }
+  // Copiar perguntas e criar vínculos na tabela de junção
+  for (const p of perguntasOriginais) {
+    const seqPerguntaRaiz = p.SEQ_PERGUNTA_BASE ?? p.SEQ_PERGUNTA;
+    const novaPergunta = await prisma.pergunta.create({
+      data: {
+        SEQ_PERGUNTA_BASE: seqPerguntaRaiz,
+        NUM_VERSAO: p.NUM_VERSAO + 1,
+        DSC_STATUS: 'RASCUNHO',
+        NUM_ORDEM: p.NUM_ORDEM,
+        SEQ_TIPO_VARIAVEL_PERGUNTA: p.SEQ_TIPO_VARIAVEL_PERGUNTA,
+        SEQ_TIPO_PERIODICIDADE_PERGUNTA: p.SEQ_TIPO_PERIODICIDADE_PERGUNTA,
+        SEQ_TIPO_FORMATO_RESPOSTA: p.SEQ_TIPO_FORMATO_RESPOSTA,
+        SEQ_CATEGORIA_PERGUNTA: p.SEQ_CATEGORIA_PERGUNTA,
+        DSC_PERGUNTA: p.DSC_PERGUNTA,
+        DSC_COMPLEMENTO_PERGUNTA: p.DSC_COMPLEMENTO_PERGUNTA,
+        COD_PERGUNTA: p.COD_PERGUNTA,
+        TXT_GLOSSARIO: p.TXT_GLOSSARIO,
+        FLG_RESPOSTA_AUTOMATICA: p.FLG_RESPOSTA_AUTOMATICA,
+        TXT_JSON_ARRAY_RESPOSTAS: p.TXT_JSON_ARRAY_RESPOSTAS,
+        USU_CRIACAO_PERGUNTA: usuario,
+        DAT_CRIACAO_PERGUNTA: new Date(),
+      },
+    });
+
+    // Criar vínculo na tabela de junção
+    await prisma.questionarioPergunta.create({
+      data: {
+        SEQ_QUESTIONARIO: novoQ.SEQ_QUESTIONARIO,
+        SEQ_PERGUNTA: novaPergunta.SEQ_PERGUNTA,
+      },
+    });
   }
 
   return novoQ.SEQ_QUESTIONARIO;
+}
+
+// Helper: buscar perguntas vinculadas (dados completos para cópia)
+async function buscarPerguntasVinculadas(seqQuestionario: number) {
+  const vinculos = await prisma.questionarioPergunta.findMany({
+    where: {
+      SEQ_QUESTIONARIO: seqQuestionario,
+      FLG_ATIVO: 'S',
+    },
+    select: { SEQ_PERGUNTA: true },
+  });
+
+  if (vinculos.length === 0) return [];
+
+  return prisma.pergunta.findMany({
+    where: { SEQ_PERGUNTA: { in: vinculos.map(v => v.SEQ_PERGUNTA) } },
+    orderBy: { NUM_ORDEM: 'asc' },
+  });
+}
+
+// ============================================================================
+// Editar Categoria
+// ============================================================================
+
+export async function editarCategoria(
+  id: number,
+  dscCategoria: string
+): Promise<void> {
+  const cat = await prisma.categoriaPergunta.findUnique({
+    where: { SEQ_CATEGORIA_PERGUNTA: id },
+  });
+
+  if (!cat) {
+    throw new Error('Categoria não encontrada');
+  }
+
+  await prisma.categoriaPergunta.update({
+    where: { SEQ_CATEGORIA_PERGUNTA: id },
+    data: { DSC_CATEGORIA_PERGUNTA: dscCategoria.trim() },
+  });
 }
 
 // ============================================================================

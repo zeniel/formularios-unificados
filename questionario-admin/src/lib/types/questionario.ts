@@ -44,6 +44,14 @@ export interface QuestionarioCompleto extends QuestionarioResumo {
   DSC_OBSERVACAO_QUESTIONARIO: string | null;
   DSC_TIPO_PERIODICIDADE: string;
   SEQ_ORGAO_ESCOPO: number | null;
+  QTD_CATEGORIAS: number;
+  categorias: CategoriaGrupo[];
+}
+
+export interface CategoriaGrupo {
+  SEQ_CATEGORIA_PERGUNTA: number | null;
+  DSC_CATEGORIA_PERGUNTA: string;
+  NUM_ORDEM: number;
   perguntas: PerguntaResumo[];
 }
 
@@ -51,6 +59,7 @@ export interface PerguntaResumo {
   SEQ_PERGUNTA: number;
   DSC_PERGUNTA: string;
   COD_PERGUNTA: string | null;
+  TXT_GLOSSARIO: string | null;
   DSC_STATUS: StatusPublicacao;
   NUM_VERSAO: number;
   NUM_ORDEM: number;
