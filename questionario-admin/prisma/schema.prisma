@@ -11,6 +11,15 @@ datasource db {
 }
 
 // ============================================================================
+// ENUMS (mapeiam ENUM do MySQL)
+// ============================================================================
+
+enum SimNao {
+  S
+  N
+}
+
+// ============================================================================
 // TABELAS DE TIPO (LOOKUP)
 // ============================================================================
 
@@ -98,7 +107,7 @@ model Questionario {
   DSC_QUESTIONARIO                String    @db.Text
   NUM_MES_LIMITE                  Int
   NUM_DIA_LIMITE                  Int?
-  FLG_ATIVO                       String    @default("S") @db.VarChar(1) // DEPRECATED
+  FLG_ATIVO                       SimNao?   @default(S) // DEPRECATED
   USU_CRIACAO_QUESTIONARIO        String    @db.VarChar(30)
   DAT_CRIACAO_QUESTIONARIO        DateTime
   DAT_INATIVACAO_FORMULARIO       DateTime?
@@ -110,7 +119,7 @@ model Questionario {
   versoes              Questionario[]         @relation("QuestionarioVersoes")
   periodicidade        TipoPeriodicidadePergunta @relation(fields: [SEQ_TIPO_PERIODICIDADE_PERGUNTA], references: [SEQ_TIPO_PERIODICIDADE_PERGUNTA])
   tipoEscopo           TipoEscopoResposta?    @relation(fields: [SEQ_TIPO_ESCOPO_RESPOSTA], references: [SEQ_TIPO_ESCOPO_RESPOSTA])
-  
+
   perguntas            Pergunta[]
   respostas            Resposta[]
   questionarioPergunta QuestionarioPergunta[] // Legado
@@ -140,10 +149,10 @@ model Pergunta {
   SEQ_CATEGORIA_PERGUNTA          Int?
   DSC_PERGUNTA                    String    @db.Text
   DSC_COMPLEMENTO_PERGUNTA        String?   @db.Text
-  FLG_ATIVA                       String    @default("S") @db.VarChar(1) // DEPRECATED
+  FLG_ATIVA                       SimNao    @default(S) // DEPRECATED
   COD_PERGUNTA                    String?   @db.VarChar(30)
   TXT_GLOSSARIO                   String?   @db.Text
-  FLG_RESPOSTA_AUTOMATICA         String?   @default("N") @db.VarChar(1)
+  FLG_RESPOSTA_AUTOMATICA         SimNao?   @default(N)
   TXT_JSON_ARRAY_RESPOSTAS        String?   @db.Text
   USU_CRIACAO_PERGUNTA            String    @db.VarChar(30)
   DAT_CRIACAO_PERGUNTA            DateTime
@@ -156,7 +165,7 @@ model Pergunta {
   periodicidade        TipoPeriodicidadePergunta @relation(fields: [SEQ_TIPO_PERIODICIDADE_PERGUNTA], references: [SEQ_TIPO_PERIODICIDADE_PERGUNTA])
   tipoFormato          TipoFormatoResposta       @relation(fields: [SEQ_TIPO_FORMATO_RESPOSTA], references: [SEQ_TIPO_FORMATO_RESPOSTA])
   categoria            CategoriaPergunta?        @relation(fields: [SEQ_CATEGORIA_PERGUNTA], references: [SEQ_CATEGORIA_PERGUNTA])
-  
+
   respostas            Resposta[]
   questionarioPergunta QuestionarioPergunta[]    // Legado
   filtros              PerguntaFiltro[]          // Filtros customizáveis
@@ -199,7 +208,7 @@ model Resposta {
 model QuestionarioPergunta {
   SEQ_QUESTIONARIO Int
   SEQ_PERGUNTA     Int
-  FLG_ATIVO        String @default("S") @db.Char(1)
+  FLG_ATIVO        SimNao @default(S)
 
   questionario Questionario @relation(fields: [SEQ_QUESTIONARIO], references: [SEQ_QUESTIONARIO])
   pergunta     Pergunta     @relation(fields: [SEQ_PERGUNTA], references: [SEQ_PERGUNTA])
@@ -219,7 +228,7 @@ model TipoFiltroPergunta {
   DSC_CAMPO_CONTEXTO       String  @db.VarChar(50)
   DSC_TIPO_DADO            String  @default("STRING") @db.VarChar(20)
   TXT_VALORES_POSSIVEIS    String? @db.Text
-  FLG_ATIVO                String  @default("S") @db.VarChar(1)
+  FLG_ATIVO                SimNao  @default(S)
   NUM_ORDEM                Int     @default(0)
   DAT_CRIACAO              DateTime @default(now())
 
@@ -233,7 +242,7 @@ model TipoOperadorFiltro {
   COD_OPERADOR             String  @unique @db.VarChar(20)
   DSC_OPERADOR             String  @db.VarChar(50)
   DSC_SIMBOLO              String? @db.VarChar(10)
-  FLG_REQUER_LISTA         String  @default("N") @db.VarChar(1)
+  FLG_REQUER_LISTA         SimNao  @default(N)
 
   filtros PerguntaFiltro[]
 
@@ -248,7 +257,7 @@ model PerguntaFiltro {
   TXT_VALORES              String    @db.Text
   NUM_GRUPO                Int       @default(1)
   DSC_OBSERVACAO           String?   @db.VarChar(200)
-  FLG_ATIVO                String    @default("S") @db.VarChar(1)
+  FLG_ATIVO                SimNao    @default(S)
   USU_INCLUSAO             String    @db.VarChar(30)
   DAT_INCLUSAO             DateTime  @default(now())
 
