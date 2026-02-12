@@ -11,10 +11,17 @@ import type {
   QuestionarioCompleto,
   CriarQuestionarioInput,
   EditarQuestionarioInput,
+  CriarPerguntaInput,
+  EditarPerguntaInput,
   StatusPublicacao,
   PerguntaResumo,
+  PerguntaCompleta,
   CategoriaGrupo,
+  FormatoResposta,
+  VariavelPergunta,
+  ReordenarPerguntaItem,
 } from '@/lib/types/questionario';
+import { parseOpcoes, serializeOpcoes } from '@/lib/types/questionario';
 
 // ============================================================================
 // Tipos auxiliares
@@ -531,4 +538,323 @@ export async function listarEscopos(): Promise<Escopo[]> {
   return prisma.tipoEscopoResposta.findMany({
     orderBy: { SEQ_TIPO_ESCOPO_RESPOSTA: 'asc' },
   });
+}
+
+// ============================================================================
+// Lookups para perguntas
+// ============================================================================
+
+export async function listarFormatosResposta(): Promise<FormatoResposta[]> {
+  return prisma.tipoFormatoResposta.findMany({
+    orderBy: { SEQ_TIPO_FORMATO_RESPOSTA: 'asc' },
+  });
+}
+
+export async function listarVariaveisPergunta(): Promise<VariavelPergunta[]> {
+  return prisma.tipoVariavelPergunta.findMany({
+    orderBy: { SEQ_TIPO_VARIAVEL_PERGUNTA: 'asc' },
+  });
+}
+
+// ============================================================================
+// CRUD de Perguntas
+// ============================================================================
+
+export async function buscarPerguntaCompleta(seqPergunta: number): Promise<PerguntaCompleta | null> {
+  const p = await prisma.pergunta.findUnique({
+    where: { SEQ_PERGUNTA: seqPergunta },
+    include: {
+      tipoFormato: true,
+      tipoVariavel: true,
+      periodicidade: true,
+      categoria: true,
+      _count: { select: { respostas: true } },
+    },
+  });
+
+  if (!p) return null;
+
+  return {
+    SEQ_PERGUNTA: p.SEQ_PERGUNTA,
+    DSC_PERGUNTA: p.DSC_PERGUNTA,
+    COD_PERGUNTA: p.COD_PERGUNTA,
+    TXT_GLOSSARIO: p.TXT_GLOSSARIO,
+    DSC_STATUS: p.DSC_STATUS as StatusPublicacao,
+    NUM_VERSAO: p.NUM_VERSAO,
+    NUM_ORDEM: p.NUM_ORDEM,
+    SEQ_PERGUNTA_BASE: p.SEQ_PERGUNTA_BASE,
+    SEQ_CATEGORIA_PERGUNTA: p.SEQ_CATEGORIA_PERGUNTA,
+    DSC_CATEGORIA_PERGUNTA: p.categoria?.DSC_CATEGORIA_PERGUNTA ?? null,
+    COD_TIPO_FORMATO_RESPOSTA: p.tipoFormato.COD_TIPO_FORMATO_RESPOSTA as PerguntaCompleta['COD_TIPO_FORMATO_RESPOSTA'],
+    DSC_TIPO_FORMATO_RESPOSTA: p.tipoFormato.DSC_TIPO_FORMATO_RESPOSTA,
+    QTD_RESPOSTAS: p._count.respostas,
+    DSC_COMPLEMENTO_PERGUNTA: p.DSC_COMPLEMENTO_PERGUNTA,
+    TXT_JSON_ARRAY_RESPOSTAS: p.TXT_JSON_ARRAY_RESPOSTAS,
+    opcoes: parseOpcoes(p.TXT_JSON_ARRAY_RESPOSTAS),
+    SEQ_TIPO_FORMATO_RESPOSTA: p.SEQ_TIPO_FORMATO_RESPOSTA,
+    SEQ_TIPO_VARIAVEL_PERGUNTA: p.SEQ_TIPO_VARIAVEL_PERGUNTA,
+    SEQ_TIPO_PERIODICIDADE_PERGUNTA: p.SEQ_TIPO_PERIODICIDADE_PERGUNTA,
+    DSC_TIPO_PERIODICIDADE: p.periodicidade.DSC_TIPO_PERIODICIDADE_PERGUNTA,
+    DSC_TIPO_VARIAVEL: p.tipoVariavel.DSC_TIPO_VARIAVEL_PERGUNTA ?? '',
+    DAT_CRIACAO_PERGUNTA: p.DAT_CRIACAO_PERGUNTA,
+    DAT_PUBLICACAO: p.DAT_PUBLICACAO,
+  };
+}
+
+export async function criarPergunta(
+  input: CriarPerguntaInput,
+  usuario: string
+): Promise<number> {
+  // Validar que questionário é RASCUNHO
+  const q = await prisma.questionario.findUnique({
+    where: { SEQ_QUESTIONARIO: input.SEQ_QUESTIONARIO },
+    select: { DSC_STATUS: true },
+  });
+
+  if (!q) throw new Error('Questionário não encontrado');
+  if (q.DSC_STATUS !== 'RASCUNHO') throw new Error('Apenas questionários em RASCUNHO podem receber perguntas');
+
+  // Calcular NUM_ORDEM se não fornecido
+  let numOrdem = input.NUM_ORDEM;
+  if (numOrdem === undefined) {
+    const maxOrdem = await prisma.questionarioPergunta.findMany({
+      where: { SEQ_QUESTIONARIO: input.SEQ_QUESTIONARIO, FLG_ATIVO: 'S' },
+      select: { SEQ_PERGUNTA: true },
+    });
+    if (maxOrdem.length > 0) {
+      const perguntas = await prisma.pergunta.findMany({
+        where: { SEQ_PERGUNTA: { in: maxOrdem.map(v => v.SEQ_PERGUNTA) } },
+        select: { NUM_ORDEM: true },
+        orderBy: { NUM_ORDEM: 'desc' },
+        take: 1,
+      });
+      numOrdem = (perguntas[0]?.NUM_ORDEM ?? 0) + 1;
+    } else {
+      numOrdem = 1;
+    }
+  }
+
+  // Criar pergunta + vínculo em transação
+  const resultado = await prisma.$transaction(async (tx) => {
+    const pergunta = await tx.pergunta.create({
+      data: {
+        DSC_PERGUNTA: input.DSC_PERGUNTA,
+        SEQ_TIPO_FORMATO_RESPOSTA: input.SEQ_TIPO_FORMATO_RESPOSTA,
+        SEQ_TIPO_PERIODICIDADE_PERGUNTA: input.SEQ_TIPO_PERIODICIDADE_PERGUNTA,
+        SEQ_TIPO_VARIAVEL_PERGUNTA: input.SEQ_TIPO_VARIAVEL_PERGUNTA,
+        SEQ_CATEGORIA_PERGUNTA: input.SEQ_CATEGORIA_PERGUNTA ?? null,
+        COD_PERGUNTA: input.COD_PERGUNTA ?? null,
+        DSC_COMPLEMENTO_PERGUNTA: input.DSC_COMPLEMENTO_PERGUNTA ?? null,
+        TXT_GLOSSARIO: input.TXT_GLOSSARIO ?? null,
+        TXT_JSON_ARRAY_RESPOSTAS: input.opcoes?.length ? serializeOpcoes(input.opcoes) : null,
+        NUM_ORDEM: numOrdem!,
+        DSC_STATUS: 'RASCUNHO',
+        NUM_VERSAO: 1,
+        USU_CRIACAO_PERGUNTA: usuario,
+        DAT_CRIACAO_PERGUNTA: new Date(),
+      },
+    });
+
+    await tx.questionarioPergunta.create({
+      data: {
+        SEQ_QUESTIONARIO: input.SEQ_QUESTIONARIO,
+        SEQ_PERGUNTA: pergunta.SEQ_PERGUNTA,
+        FLG_ATIVO: 'S',
+      },
+    });
+
+    return pergunta.SEQ_PERGUNTA;
+  });
+
+  return resultado;
+}
+
+export async function editarPergunta(
+  seqQuestionario: number,
+  seqPergunta: number,
+  input: EditarPerguntaInput
+): Promise<void> {
+  // Validar que questionário é RASCUNHO
+  const q = await prisma.questionario.findUnique({
+    where: { SEQ_QUESTIONARIO: seqQuestionario },
+    select: { DSC_STATUS: true },
+  });
+
+  if (!q) throw new Error('Questionário não encontrado');
+  if (q.DSC_STATUS !== 'RASCUNHO') throw new Error('Apenas questionários em RASCUNHO podem ser editados');
+
+  // Validar que pergunta está vinculada ao questionário
+  const vinculo = await prisma.questionarioPergunta.findUnique({
+    where: {
+      SEQ_QUESTIONARIO_SEQ_PERGUNTA: {
+        SEQ_QUESTIONARIO: seqQuestionario,
+        SEQ_PERGUNTA: seqPergunta,
+      },
+    },
+  });
+
+  if (!vinculo || vinculo.FLG_ATIVO !== 'S') {
+    throw new Error('Pergunta não vinculada a este questionário');
+  }
+
+  const data: Record<string, unknown> = {};
+  if (input.DSC_PERGUNTA !== undefined) data.DSC_PERGUNTA = input.DSC_PERGUNTA;
+  if (input.COD_PERGUNTA !== undefined) data.COD_PERGUNTA = input.COD_PERGUNTA;
+  if (input.DSC_COMPLEMENTO_PERGUNTA !== undefined) data.DSC_COMPLEMENTO_PERGUNTA = input.DSC_COMPLEMENTO_PERGUNTA;
+  if (input.TXT_GLOSSARIO !== undefined) data.TXT_GLOSSARIO = input.TXT_GLOSSARIO;
+  if (input.opcoes !== undefined) data.TXT_JSON_ARRAY_RESPOSTAS = input.opcoes.length ? serializeOpcoes(input.opcoes) : null;
+  if (input.SEQ_CATEGORIA_PERGUNTA !== undefined) data.SEQ_CATEGORIA_PERGUNTA = input.SEQ_CATEGORIA_PERGUNTA;
+  if (input.NUM_ORDEM !== undefined) data.NUM_ORDEM = input.NUM_ORDEM;
+
+  await prisma.pergunta.update({
+    where: { SEQ_PERGUNTA: seqPergunta },
+    data,
+  });
+}
+
+export async function excluirPergunta(
+  seqQuestionario: number,
+  seqPergunta: number
+): Promise<void> {
+  // Validar que questionário é RASCUNHO
+  const q = await prisma.questionario.findUnique({
+    where: { SEQ_QUESTIONARIO: seqQuestionario },
+    select: { DSC_STATUS: true },
+  });
+
+  if (!q) throw new Error('Questionário não encontrado');
+  if (q.DSC_STATUS !== 'RASCUNHO') throw new Error('Apenas questionários em RASCUNHO podem ter perguntas excluídas');
+
+  // Verificar se tem respostas
+  const pergunta = await prisma.pergunta.findUnique({
+    where: { SEQ_PERGUNTA: seqPergunta },
+    include: { _count: { select: { respostas: true } } },
+  });
+
+  if (!pergunta) throw new Error('Pergunta não encontrada');
+
+  if (pergunta._count.respostas > 0) {
+    // Soft delete: desvincula
+    await prisma.questionarioPergunta.update({
+      where: {
+        SEQ_QUESTIONARIO_SEQ_PERGUNTA: {
+          SEQ_QUESTIONARIO: seqQuestionario,
+          SEQ_PERGUNTA: seqPergunta,
+        },
+      },
+      data: { FLG_ATIVO: 'N' },
+    });
+  } else {
+    // Hard delete: remove vínculo + pergunta
+    await prisma.$transaction([
+      prisma.questionarioPergunta.delete({
+        where: {
+          SEQ_QUESTIONARIO_SEQ_PERGUNTA: {
+            SEQ_QUESTIONARIO: seqQuestionario,
+            SEQ_PERGUNTA: seqPergunta,
+          },
+        },
+      }),
+      prisma.pergunta.delete({
+        where: { SEQ_PERGUNTA: seqPergunta },
+      }),
+    ]);
+  }
+}
+
+export async function reordenarPerguntas(
+  seqQuestionario: number,
+  ordens: ReordenarPerguntaItem[]
+): Promise<void> {
+  // Validar que questionário é RASCUNHO
+  const q = await prisma.questionario.findUnique({
+    where: { SEQ_QUESTIONARIO: seqQuestionario },
+    select: { DSC_STATUS: true },
+  });
+
+  if (!q) throw new Error('Questionário não encontrado');
+  if (q.DSC_STATUS !== 'RASCUNHO') throw new Error('Apenas questionários em RASCUNHO podem ser reordenados');
+
+  // Batch update em transação
+  await prisma.$transaction(
+    ordens.map((item) =>
+      prisma.pergunta.update({
+        where: { SEQ_PERGUNTA: item.SEQ_PERGUNTA },
+        data: {
+          NUM_ORDEM: item.NUM_ORDEM,
+          SEQ_CATEGORIA_PERGUNTA: item.SEQ_CATEGORIA_PERGUNTA,
+        },
+      })
+    )
+  );
+}
+
+export async function buscarPerguntasTemplate(
+  busca: string,
+  limite: number = 10
+): Promise<PerguntaResumo[]> {
+  const perguntas = await prisma.pergunta.findMany({
+    where: {
+      OR: [
+        { DSC_PERGUNTA: { contains: busca } },
+        { COD_PERGUNTA: { contains: busca } },
+      ],
+    },
+    include: {
+      tipoFormato: true,
+      categoria: true,
+      _count: { select: { respostas: true } },
+    },
+    orderBy: { SEQ_PERGUNTA: 'desc' },
+    take: limite,
+  });
+
+  return perguntas.map((p) => ({
+    SEQ_PERGUNTA: p.SEQ_PERGUNTA,
+    DSC_PERGUNTA: p.DSC_PERGUNTA,
+    COD_PERGUNTA: p.COD_PERGUNTA,
+    TXT_GLOSSARIO: p.TXT_GLOSSARIO,
+    DSC_STATUS: p.DSC_STATUS as StatusPublicacao,
+    NUM_VERSAO: p.NUM_VERSAO,
+    NUM_ORDEM: p.NUM_ORDEM,
+    SEQ_PERGUNTA_BASE: p.SEQ_PERGUNTA_BASE,
+    SEQ_CATEGORIA_PERGUNTA: p.SEQ_CATEGORIA_PERGUNTA,
+    DSC_CATEGORIA_PERGUNTA: p.categoria?.DSC_CATEGORIA_PERGUNTA ?? null,
+    COD_TIPO_FORMATO_RESPOSTA: p.tipoFormato.COD_TIPO_FORMATO_RESPOSTA as PerguntaResumo['COD_TIPO_FORMATO_RESPOSTA'],
+    DSC_TIPO_FORMATO_RESPOSTA: p.tipoFormato.DSC_TIPO_FORMATO_RESPOSTA,
+    QTD_RESPOSTAS: p._count.respostas,
+  }));
+}
+
+// ============================================================================
+// Criar Categoria
+// ============================================================================
+
+export async function criarCategoria(
+  input: { DSC_CATEGORIA_PERGUNTA: string; SEQ_CATEGORIA_PERGUNTA_PAI?: number; NUM_ORDEM?: number },
+  usuario: string
+): Promise<number> {
+  // Calcular NUM_ORDEM se não fornecido
+  let numOrdem = input.NUM_ORDEM;
+  if (numOrdem === undefined) {
+    const maxCat = await prisma.categoriaPergunta.findFirst({
+      orderBy: { NUM_ORDEM: 'desc' },
+      select: { NUM_ORDEM: true },
+    });
+    numOrdem = (maxCat?.NUM_ORDEM ?? 0) + 1;
+  }
+
+  const cat = await prisma.categoriaPergunta.create({
+    data: {
+      DSC_CATEGORIA_PERGUNTA: input.DSC_CATEGORIA_PERGUNTA.trim(),
+      SEQ_CATEGORIA_PERGUNTA_PAI: input.SEQ_CATEGORIA_PERGUNTA_PAI ?? null,
+      NUM_ORDEM: numOrdem,
+      DSC_STATUS: 'RASCUNHO',
+      NUM_VERSAO: 1,
+      USU_INCLUSAO: usuario,
+      DAT_INCLUSAO: new Date(),
+    },
+  });
+
+  return cat.SEQ_CATEGORIA_PERGUNTA;
 }

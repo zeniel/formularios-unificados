@@ -12,104 +12,17 @@ import {
   Trash2,
   Loader2,
   AlertTriangle,
-  FileText,
   Calendar,
-  Hash,
   Info,
-  HelpCircle,
-  FolderOpen,
-  Check,
-  X,
 } from 'lucide-react';
 import { formatDateTime } from '@/lib/utils';
-import type { QuestionarioCompleto, CategoriaGrupo } from '@/lib/types/questionario';
+import type { QuestionarioCompleto } from '@/lib/types/questionario';
 import { isEditavel } from '@/lib/types/questionario';
+import { PerguntasSection } from './perguntas/perguntas-section';
 
 interface FormularioDetalhesProps {
   id: number;
   nomPerfil?: string;
-}
-
-function CategoriaHeader({
-  categoria,
-  canEdit,
-  onRename,
-}: {
-  categoria: CategoriaGrupo;
-  canEdit: boolean;
-  onRename: (id: number, nome: string) => void;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [nome, setNome] = useState(categoria.DSC_CATEGORIA_PERGUNTA);
-
-  if (!categoria.SEQ_CATEGORIA_PERGUNTA) {
-    return (
-      <div className="flex items-center gap-2 py-3 px-4 bg-gray-50 border-b">
-        <FolderOpen className="w-4 h-4 text-gray-400" />
-        <span className="text-sm font-medium text-gray-500 italic">Sem categoria</span>
-        <span className="text-xs text-gray-400 ml-auto">{categoria.perguntas.length} pergunta{categoria.perguntas.length !== 1 ? 's' : ''}</span>
-      </div>
-    );
-  }
-
-  if (editing) {
-    return (
-      <div className="flex items-center gap-2 py-2 px-4 bg-blue-50 border-b">
-        <FolderOpen className="w-4 h-4 text-blue-500" />
-        <input
-          type="text"
-          value={nome}
-          onChange={(e) => setNome(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && nome.trim()) {
-              onRename(categoria.SEQ_CATEGORIA_PERGUNTA!, nome.trim());
-              setEditing(false);
-            }
-            if (e.key === 'Escape') {
-              setNome(categoria.DSC_CATEGORIA_PERGUNTA);
-              setEditing(false);
-            }
-          }}
-          className="flex-1 px-2 py-1 text-sm font-semibold border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-          autoFocus
-        />
-        <button
-          onClick={() => {
-            if (nome.trim()) {
-              onRename(categoria.SEQ_CATEGORIA_PERGUNTA!, nome.trim());
-              setEditing(false);
-            }
-          }}
-          className="p-1 text-green-600 hover:bg-green-100 rounded"
-        >
-          <Check className="w-4 h-4" />
-        </button>
-        <button
-          onClick={() => { setNome(categoria.DSC_CATEGORIA_PERGUNTA); setEditing(false); }}
-          className="p-1 text-gray-400 hover:bg-gray-100 rounded"
-        >
-          <X className="w-4 h-4" />
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex items-center gap-2 py-3 px-4 bg-gray-50 border-b group">
-      <FolderOpen className="w-4 h-4 text-blue-500" />
-      <span className="text-sm font-semibold text-gray-800">{categoria.DSC_CATEGORIA_PERGUNTA}</span>
-      {canEdit && (
-        <button
-          onClick={() => setEditing(true)}
-          className="p-1 text-gray-300 hover:text-blue-500 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-          title="Renomear categoria"
-        >
-          <Pencil className="w-3.5 h-3.5" />
-        </button>
-      )}
-      <span className="text-xs text-gray-400 ml-auto">{categoria.perguntas.length} pergunta{categoria.perguntas.length !== 1 ? 's' : ''}</span>
-    </div>
-  );
 }
 
 export function FormularioDetalhes({ id, nomPerfil }: FormularioDetalhesProps) {
@@ -120,7 +33,6 @@ export function FormularioDetalhes({ id, nomPerfil }: FormularioDetalhesProps) {
 
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmPublish, setConfirmPublish] = useState(false);
-  const [expandedGlossario, setExpandedGlossario] = useState<Set<number>>(new Set());
 
   const { data, isLoading, error } = useQuery<{ success: boolean; data: QuestionarioCompleto }>({
     queryKey: ['questionario', id],
@@ -174,32 +86,6 @@ export function FormularioDetalhes({ id, nomPerfil }: FormularioDetalhesProps) {
     },
   });
 
-  const renameCategoriaMutation = useMutation({
-    mutationFn: async ({ catId, nome }: { catId: number; nome: string }) => {
-      const res = await fetch(`/api/categorias/${catId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ DSC_CATEGORIA_PERGUNTA: nome }),
-      });
-      if (!res.ok) {
-        const json = await res.json();
-        throw new Error(json.error || 'Erro ao renomear');
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['questionario', id] });
-    },
-  });
-
-  function toggleGlossario(seqPergunta: number) {
-    setExpandedGlossario(prev => {
-      const next = new Set(prev);
-      if (next.has(seqPergunta)) next.delete(seqPergunta);
-      else next.add(seqPergunta);
-      return next;
-    });
-  }
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -225,9 +111,6 @@ export function FormularioDetalhes({ id, nomPerfil }: FormularioDetalhesProps) {
 
   const q = data.data;
   const editavel = isEditavel(q.DSC_STATUS);
-
-  // Contagem global de perguntas
-  let perguntaGlobalIndex = 0;
 
   return (
     <div className="space-y-6">
@@ -389,106 +272,15 @@ export function FormularioDetalhes({ id, nomPerfil }: FormularioDetalhesProps) {
         </div>
       </div>
 
-      {/* Perguntas agrupadas por categoria */}
-      <div className="card">
-        <div className="card-header">
-          <h3 className="text-lg font-semibold flex items-center gap-2">
-            <Hash className="w-5 h-5 text-orange-500" />
-            Perguntas ({q.QTD_PERGUNTAS})
-            {q.QTD_CATEGORIAS > 0 && (
-              <span className="text-sm font-normal text-gray-400">
-                em {q.QTD_CATEGORIAS} categoria{q.QTD_CATEGORIAS !== 1 ? 's' : ''}
-              </span>
-            )}
-          </h3>
-        </div>
-        <div className="card-content">
-          {q.categorias.length === 0 ? (
-            <div className="flex flex-col items-center py-8 text-gray-500">
-              <FileText className="w-10 h-10 text-gray-300 mb-2" />
-              <p>Nenhuma pergunta cadastrada</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {q.categorias.map((cat) => (
-                <div key={cat.SEQ_CATEGORIA_PERGUNTA ?? 'sem-categoria'} className="border rounded-lg overflow-hidden">
-                  {/* Header da categoria */}
-                  <CategoriaHeader
-                    categoria={cat}
-                    canEdit={canEdit && editavel}
-                    onRename={(catId, nome) => renameCategoriaMutation.mutate({ catId, nome })}
-                  />
-
-                  {/* Perguntas da categoria */}
-                  <div className="divide-y">
-                    {cat.perguntas.map((p) => {
-                      perguntaGlobalIndex++;
-                      const hasGlossario = !!p.TXT_GLOSSARIO;
-                      const glossarioExpanded = expandedGlossario.has(p.SEQ_PERGUNTA);
-
-                      return (
-                        <div key={p.SEQ_PERGUNTA} className="hover:bg-gray-50">
-                          <div className="flex items-start gap-3 p-3">
-                            <span className="flex-shrink-0 w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-sm font-medium text-gray-600">
-                              {perguntaGlobalIndex}
-                            </span>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-gray-900">
-                                {p.COD_PERGUNTA && (
-                                  <span className="text-blue-600 font-mono mr-1.5">{p.COD_PERGUNTA}</span>
-                                )}
-                                {p.DSC_PERGUNTA}
-                              </p>
-                              <div className="flex items-center gap-3 mt-1">
-                                <span className="text-xs text-gray-400">{p.DSC_TIPO_FORMATO_RESPOSTA}</span>
-                                <span className="text-xs text-gray-400">{p.QTD_RESPOSTAS} resp.</span>
-                                {hasGlossario && (
-                                  <button
-                                    onClick={() => toggleGlossario(p.SEQ_PERGUNTA)}
-                                    className="inline-flex items-center gap-1 text-xs text-blue-500 hover:text-blue-700"
-                                  >
-                                    <HelpCircle className="w-3 h-3" />
-                                    Ajuda
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                            <span className={p.DSC_STATUS === 'RASCUNHO' ? 'badge-rascunho' : 'badge-publicado'}>
-                              {p.DSC_STATUS === 'RASCUNHO' ? 'Rascunho' : 'Publicado'}
-                            </span>
-                          </div>
-
-                          {/* Glossário expandido */}
-                          {hasGlossario && glossarioExpanded && (
-                            <div className="px-14 pb-3">
-                              <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 text-sm text-blue-800">
-                                <div className="flex items-start gap-2">
-                                  <HelpCircle className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
-                                  <div
-                                    className="glossario-html prose prose-sm prose-blue max-w-none"
-                                    dangerouslySetInnerHTML={{ __html: p.TXT_GLOSSARIO! }}
-                                  />
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Erro de rename categoria */}
-      {renameCategoriaMutation.error && (
-        <div className="fixed bottom-4 right-4 bg-red-100 border border-red-300 text-red-800 px-4 py-3 rounded-lg shadow-lg z-50">
-          {renameCategoriaMutation.error instanceof Error ? renameCategoriaMutation.error.message : 'Erro ao renomear categoria'}
-        </div>
-      )}
+      {/* Perguntas com CRUD e drag-and-drop */}
+      <PerguntasSection
+        questionarioId={q.SEQ_QUESTIONARIO}
+        categorias={q.categorias}
+        qtdPerguntas={q.QTD_PERGUNTAS}
+        qtdCategorias={q.QTD_CATEGORIAS}
+        editavel={editavel}
+        canEdit={canEdit}
+      />
 
       {/* Modal de confirmação de exclusão */}
       {confirmDelete && (

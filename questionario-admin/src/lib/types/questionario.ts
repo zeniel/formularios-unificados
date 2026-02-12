@@ -76,10 +76,33 @@ export interface PerguntaCompleta extends PerguntaResumo {
   TXT_GLOSSARIO: string | null;
   TXT_JSON_ARRAY_RESPOSTAS: string | null;
   opcoes: string[]; // Parseado de TXT_JSON_ARRAY_RESPOSTAS
+  SEQ_TIPO_FORMATO_RESPOSTA: number;
+  SEQ_TIPO_VARIAVEL_PERGUNTA: number;
+  SEQ_TIPO_PERIODICIDADE_PERGUNTA: number;
   DSC_TIPO_PERIODICIDADE: string;
   DSC_TIPO_VARIAVEL: string;
   DAT_CRIACAO_PERGUNTA: Date;
   DAT_PUBLICACAO: Date | null;
+}
+
+// Lookup de formatos de resposta
+export interface FormatoResposta {
+  SEQ_TIPO_FORMATO_RESPOSTA: number;
+  COD_TIPO_FORMATO_RESPOSTA: number;
+  DSC_TIPO_FORMATO_RESPOSTA: string;
+}
+
+// Lookup de variáveis de pergunta
+export interface VariavelPergunta {
+  SEQ_TIPO_VARIAVEL_PERGUNTA: number;
+  DSC_TIPO_VARIAVEL_PERGUNTA: string | null;
+}
+
+// Payload do reorder (drag-and-drop)
+export interface ReordenarPerguntaItem {
+  SEQ_PERGUNTA: number;
+  NUM_ORDEM: number;
+  SEQ_CATEGORIA_PERGUNTA: number | null;
 }
 
 export interface CategoriaResumo {
