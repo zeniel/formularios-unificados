@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { FolderOpen, Pencil, Check, X } from 'lucide-react';
+import { FolderOpen, Pencil, Check, X, ArrowUpDown } from 'lucide-react';
 import type { CategoriaGrupo } from '@/lib/types/questionario';
 import { SortablePergunta } from './sortable-pergunta';
 
@@ -14,6 +14,7 @@ interface CategoriaDroppableProps {
   onRename: (id: number, nome: string) => void;
   onEditPergunta: (seqPergunta: number) => void;
   onDeletePergunta: (seqPergunta: number) => void;
+  onSortCategoria?: (seqCategoria: number | null) => void;
 }
 
 export function CategoriaDroppable({
@@ -23,6 +24,7 @@ export function CategoriaDroppable({
   onRename,
   onEditPergunta,
   onDeletePergunta,
+  onSortCategoria,
 }: CategoriaDroppableProps) {
   const [editing, setEditing] = useState(false);
   const [nome, setNome] = useState(categoria.DSC_CATEGORIA_PERGUNTA);
@@ -40,9 +42,18 @@ export function CategoriaDroppable({
     >
       {/* Header da categoria */}
       {!categoria.SEQ_CATEGORIA_PERGUNTA ? (
-        <div className="flex items-center gap-2 py-3 px-4 bg-gray-50 border-b">
+        <div className="flex items-center gap-2 py-3 px-4 bg-gray-50 border-b group">
           <FolderOpen className="w-4 h-4 text-gray-400" />
           <span className="text-sm font-medium text-gray-500 italic">Sem categoria</span>
+          {canEdit && onSortCategoria && categoria.perguntas.length > 1 && (
+            <button
+              onClick={() => onSortCategoria(categoria.SEQ_CATEGORIA_PERGUNTA)}
+              className="p-1 text-gray-300 hover:text-blue-500 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+              title="Ordenar por código/título"
+            >
+              <ArrowUpDown className="w-3.5 h-3.5" />
+            </button>
+          )}
           <span className="text-xs text-gray-400 ml-auto">
             {categoria.perguntas.length} pergunta{categoria.perguntas.length !== 1 ? 's' : ''}
           </span>
@@ -90,13 +101,24 @@ export function CategoriaDroppable({
           <FolderOpen className="w-4 h-4 text-blue-500" />
           <span className="text-sm font-semibold text-gray-800">{categoria.DSC_CATEGORIA_PERGUNTA}</span>
           {canEdit && (
-            <button
-              onClick={() => setEditing(true)}
-              className="p-1 text-gray-300 hover:text-blue-500 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-              title="Renomear categoria"
-            >
-              <Pencil className="w-3.5 h-3.5" />
-            </button>
+            <>
+              <button
+                onClick={() => setEditing(true)}
+                className="p-1 text-gray-300 hover:text-blue-500 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                title="Renomear categoria"
+              >
+                <Pencil className="w-3.5 h-3.5" />
+              </button>
+              {onSortCategoria && categoria.perguntas.length > 1 && (
+                <button
+                  onClick={() => onSortCategoria(categoria.SEQ_CATEGORIA_PERGUNTA)}
+                  className="p-1 text-gray-300 hover:text-blue-500 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                  title="Ordenar por código/título"
+                >
+                  <ArrowUpDown className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </>
           )}
           <span className="text-xs text-gray-400 ml-auto">
             {categoria.perguntas.length} pergunta{categoria.perguntas.length !== 1 ? 's' : ''}

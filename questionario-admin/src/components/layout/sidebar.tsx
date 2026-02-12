@@ -8,6 +8,8 @@ import {
   LayoutDashboard,
   FileText,
   Settings,
+  CalendarClock,
+  CalendarRange,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -29,9 +31,15 @@ const navItems: NavItem[] = [
     perfis: ['ADMINISTRADOR', 'VISUALIZADOR', 'PESQUISADOR'],
   },
   {
-    href: '/formularios',
-    label: 'Formulários',
-    icon: FileText,
+    href: '/formularios/periodicos',
+    label: 'Periódicos',
+    icon: CalendarClock,
+    perfis: ['ADMINISTRADOR', 'VISUALIZADOR', 'PESQUISADOR'],
+  },
+  {
+    href: '/formularios/sob-demanda',
+    label: 'Sob Demanda',
+    icon: CalendarRange,
     perfis: ['ADMINISTRADOR', 'VISUALIZADOR', 'PESQUISADOR'],
   },
   {

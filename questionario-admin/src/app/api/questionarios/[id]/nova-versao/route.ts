@@ -26,6 +26,7 @@ export async function POST(_request: NextRequest, { params }: Params) {
     const message = error instanceof Error ? error.message : 'Erro ao criar nova versão';
     const status = message.includes('não encontrado') ? 404
       : message.includes('PUBLICADOS') ? 409
+      : message.includes('RASCUNHO') ? 409
       : 500;
     console.error('[api/questionarios/[id]/nova-versao] Erro:', error);
     return NextResponse.json({ error: message }, { status });

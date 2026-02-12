@@ -17,9 +17,9 @@ interface UsuarioRow {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: { cpf: string } }
 ) {
-  const cpf = params.id.replace(/\D/g, '').trim(); // Remove pontos, tracos, etc.
+  const cpf = params.cpf.replace(/\D/g, '').trim(); // Remove pontos, tracos, etc.
 
   try {
     if (!cpf || cpf.length < 11) {

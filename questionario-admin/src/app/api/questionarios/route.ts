@@ -16,12 +16,14 @@ export async function GET(request: NextRequest) {
     const { searchParams } = request.nextUrl;
     const busca = searchParams.get('busca') || undefined;
     const status = searchParams.get('status') as StatusPublicacao | null;
+    const tipo = searchParams.get('tipo') as 'periodico' | 'sob-demanda' | null;
     const pagina = parseInt(searchParams.get('pagina') || '1', 10);
     const porPagina = parseInt(searchParams.get('porPagina') || '20', 10);
 
     const resultado = await listarQuestionarios({
       busca,
       status: status || undefined,
+      tipo: tipo || undefined,
       pagina,
       porPagina,
     });
@@ -50,9 +52,17 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
-    if (!body.NOM_QUESTIONARIO || !body.DSC_QUESTIONARIO || !body.SEQ_TIPO_PERIODICIDADE_PERGUNTA || !body.NUM_MES_LIMITE) {
+    // Sob demanda: SEQ_TIPO_PERIODICIDADE_PERGUNTA é null
+    const isSobDemanda = !body.SEQ_TIPO_PERIODICIDADE_PERGUNTA;
+    if (!body.NOM_QUESTIONARIO || !body.DSC_QUESTIONARIO) {
       return NextResponse.json(
-        { error: 'Campos obrigatórios: NOM_QUESTIONARIO, DSC_QUESTIONARIO, SEQ_TIPO_PERIODICIDADE_PERGUNTA, NUM_MES_LIMITE' },
+        { error: 'Campos obrigatórios: NOM_QUESTIONARIO, DSC_QUESTIONARIO' },
+        { status: 400 }
+      );
+    }
+    if (!isSobDemanda && !body.NUM_MES_LIMITE) {
+      return NextResponse.json(
+        { error: 'Campos obrigatórios para periódicos: SEQ_TIPO_PERIODICIDADE_PERGUNTA, NUM_MES_LIMITE' },
         { status: 400 }
       );
     }

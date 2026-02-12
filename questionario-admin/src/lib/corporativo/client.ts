@@ -7,6 +7,7 @@
 import {
   UsuarioCorporativo,
   OrgaoCorporativo,
+  OrgaoResumoCorporativo,
   TribunalCorporativo,
   ContextoUsuario,
 } from './types';
@@ -30,6 +31,9 @@ export interface ICorporativoClient {
 
   /** Busca tribunal por sigla (ex: TJSP, TRF3, CNJ) */
   getTribunal(sigla: string): Promise<TribunalCorporativo | null>;
+
+  /** Busca órgãos de um tribunal (por sigla) com filtro por nome */
+  buscarOrgaos(siglaTribunal: string, busca?: string): Promise<OrgaoResumoCorporativo[]>;
 }
 
 // ============================================================================
@@ -99,6 +103,16 @@ export class CorporativoApiClient implements ICorporativoClient {
 
   async listarTribunais(): Promise<TribunalCorporativo[]> {
     return this.fetchList<TribunalCorporativo>('/api/tribunais');
+  }
+
+  // --------------------------------------------------------------------------
+  // ORGAOS DE UM TRIBUNAL (busca por nome)
+  // --------------------------------------------------------------------------
+
+  async buscarOrgaos(siglaTribunal: string, busca?: string): Promise<OrgaoResumoCorporativo[]> {
+    const params = new URLSearchParams({ tribunal: siglaTribunal });
+    if (busca?.trim()) params.set('busca', busca.trim());
+    return this.fetchList<OrgaoResumoCorporativo>(`/api/orgaos?${params}`);
   }
 
   // --------------------------------------------------------------------------

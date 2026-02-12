@@ -100,12 +100,12 @@ model Questionario {
   DSC_STATUS                      String    @default("RASCUNHO") @db.VarChar(20)
   DAT_PUBLICACAO                  DateTime?
   USU_PUBLICACAO                  String?   @db.VarChar(30)
-  SEQ_TIPO_PERIODICIDADE_PERGUNTA Int
+  SEQ_TIPO_PERIODICIDADE_PERGUNTA Int?
   SEQ_TIPO_ESCOPO_RESPOSTA        Int?
   SEQ_ORGAO_ESCOPO                Int?      @db.UnsignedInt
   NOM_QUESTIONARIO                String    @db.VarChar(150)
   DSC_QUESTIONARIO                String    @db.Text
-  NUM_MES_LIMITE                  Int
+  NUM_MES_LIMITE                  Int?
   NUM_DIA_LIMITE                  Int?
   FLG_ATIVO                       SimNao?   @default(S) // DEPRECATED
   USU_CRIACAO_QUESTIONARIO        String    @db.VarChar(30)
@@ -115,19 +115,35 @@ model Questionario {
   DSC_OBSERVACAO_QUESTIONARIO     String?   @db.Text
 
   // Relacionamentos
-  questionarioBase     Questionario?          @relation("QuestionarioVersoes", fields: [SEQ_QUESTIONARIO_BASE], references: [SEQ_QUESTIONARIO], onDelete: NoAction, onUpdate: NoAction)
-  versoes              Questionario[]         @relation("QuestionarioVersoes")
-  periodicidade        TipoPeriodicidadePergunta @relation(fields: [SEQ_TIPO_PERIODICIDADE_PERGUNTA], references: [SEQ_TIPO_PERIODICIDADE_PERGUNTA])
+  questionarioBase     Questionario?           @relation("QuestionarioVersoes", fields: [SEQ_QUESTIONARIO_BASE], references: [SEQ_QUESTIONARIO], onDelete: NoAction, onUpdate: NoAction)
+  versoes              Questionario[]          @relation("QuestionarioVersoes")
+  periodicidade        TipoPeriodicidadePergunta? @relation(fields: [SEQ_TIPO_PERIODICIDADE_PERGUNTA], references: [SEQ_TIPO_PERIODICIDADE_PERGUNTA])
   tipoEscopo           TipoEscopoResposta?    @relation(fields: [SEQ_TIPO_ESCOPO_RESPOSTA], references: [SEQ_TIPO_ESCOPO_RESPOSTA])
 
   perguntas            Pergunta[]
   respostas            Resposta[]
   questionarioPergunta QuestionarioPergunta[] // Legado
+  escopoOrgaos         QuestionarioTribunal[] // Órgãos/tribunais vinculados ao escopo
 
   @@index([SEQ_QUESTIONARIO_BASE])
   @@index([DSC_STATUS])
   @@index([SEQ_TIPO_ESCOPO_RESPOSTA])
   @@map("questionario")
+}
+
+// ============================================================================
+// QUESTIONÁRIO ↔ ÓRGÃO/TRIBUNAL (escopo de resposta)
+// ============================================================================
+
+model QuestionarioTribunal {
+  SEQ_ORGAO        Int @db.UnsignedInt
+  SEQ_QUESTIONARIO Int
+
+  questionario Questionario @relation(fields: [SEQ_QUESTIONARIO], references: [SEQ_QUESTIONARIO], onDelete: Cascade)
+
+  @@id([SEQ_ORGAO, SEQ_QUESTIONARIO])
+  @@index([SEQ_QUESTIONARIO])
+  @@map("questionario_tribunal")
 }
 
 // ============================================================================

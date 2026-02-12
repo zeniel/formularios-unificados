@@ -6,10 +6,8 @@ import { Loader2, FileText, Plus, X } from 'lucide-react';
 import type {
   PerguntaCompleta,
   FormatoResposta,
-  VariavelPergunta,
   CategoriaGrupo,
 } from '@/lib/types/questionario';
-import type { Periodicidade } from '@/lib/questionarios/repository';
 import { PerguntaTemplateSearch } from './pergunta-template-search';
 import type { PerguntaResumo } from '@/lib/types/questionario';
 
@@ -27,8 +25,6 @@ interface FormData {
   DSC_COMPLEMENTO_PERGUNTA: string;
   TXT_GLOSSARIO: string;
   SEQ_TIPO_FORMATO_RESPOSTA: string;
-  SEQ_TIPO_VARIAVEL_PERGUNTA: string;
-  SEQ_TIPO_PERIODICIDADE_PERGUNTA: string;
   SEQ_CATEGORIA_PERGUNTA: string;
   opcoes: string[];
 }
@@ -39,8 +35,6 @@ const EMPTY_FORM: FormData = {
   DSC_COMPLEMENTO_PERGUNTA: '',
   TXT_GLOSSARIO: '',
   SEQ_TIPO_FORMATO_RESPOSTA: '',
-  SEQ_TIPO_VARIAVEL_PERGUNTA: '',
-  SEQ_TIPO_PERIODICIDADE_PERGUNTA: '',
   SEQ_CATEGORIA_PERGUNTA: '',
   opcoes: [],
 };
@@ -65,8 +59,6 @@ export function PerguntaFormModal({
     success: boolean;
     data: {
       formatos: FormatoResposta[];
-      variaveis: VariavelPergunta[];
-      periodicidades: Periodicidade[];
     };
   }>({
     queryKey: ['perguntas-lookup'],
@@ -102,8 +94,6 @@ export function PerguntaFormModal({
         DSC_COMPLEMENTO_PERGUNTA: p.DSC_COMPLEMENTO_PERGUNTA || '',
         TXT_GLOSSARIO: p.TXT_GLOSSARIO || '',
         SEQ_TIPO_FORMATO_RESPOSTA: String(p.SEQ_TIPO_FORMATO_RESPOSTA),
-        SEQ_TIPO_VARIAVEL_PERGUNTA: String(p.SEQ_TIPO_VARIAVEL_PERGUNTA),
-        SEQ_TIPO_PERIODICIDADE_PERGUNTA: String(p.SEQ_TIPO_PERIODICIDADE_PERGUNTA),
         SEQ_CATEGORIA_PERGUNTA: p.SEQ_CATEGORIA_PERGUNTA ? String(p.SEQ_CATEGORIA_PERGUNTA) : '',
         opcoes: p.opcoes || [],
       });
@@ -134,8 +124,6 @@ export function PerguntaFormModal({
         DSC_COMPLEMENTO_PERGUNTA: form.DSC_COMPLEMENTO_PERGUNTA || null,
         TXT_GLOSSARIO: form.TXT_GLOSSARIO || null,
         SEQ_TIPO_FORMATO_RESPOSTA: parseInt(form.SEQ_TIPO_FORMATO_RESPOSTA, 10),
-        SEQ_TIPO_VARIAVEL_PERGUNTA: parseInt(form.SEQ_TIPO_VARIAVEL_PERGUNTA, 10),
-        SEQ_TIPO_PERIODICIDADE_PERGUNTA: parseInt(form.SEQ_TIPO_PERIODICIDADE_PERGUNTA, 10),
         SEQ_CATEGORIA_PERGUNTA: form.SEQ_CATEGORIA_PERGUNTA ? parseInt(form.SEQ_CATEGORIA_PERGUNTA, 10) : null,
         opcoes: mostrarOpcoes ? form.opcoes.filter(Boolean) : [],
       };
@@ -177,8 +165,6 @@ export function PerguntaFormModal({
             DSC_COMPLEMENTO_PERGUNTA: t.DSC_COMPLEMENTO_PERGUNTA || '',
             TXT_GLOSSARIO: t.TXT_GLOSSARIO || '',
             SEQ_TIPO_FORMATO_RESPOSTA: String(t.SEQ_TIPO_FORMATO_RESPOSTA),
-            SEQ_TIPO_VARIAVEL_PERGUNTA: String(t.SEQ_TIPO_VARIAVEL_PERGUNTA),
-            SEQ_TIPO_PERIODICIDADE_PERGUNTA: String(t.SEQ_TIPO_PERIODICIDADE_PERGUNTA),
             SEQ_CATEGORIA_PERGUNTA: t.SEQ_CATEGORIA_PERGUNTA ? String(t.SEQ_CATEGORIA_PERGUNTA) : '',
             opcoes: t.opcoes || [],
           });
@@ -220,9 +206,7 @@ export function PerguntaFormModal({
 
   const canSubmit =
     form.DSC_PERGUNTA.trim() &&
-    form.SEQ_TIPO_FORMATO_RESPOSTA &&
-    form.SEQ_TIPO_VARIAVEL_PERGUNTA &&
-    form.SEQ_TIPO_PERIODICIDADE_PERGUNTA;
+    form.SEQ_TIPO_FORMATO_RESPOSTA;
 
   if (!open) return null;
 
@@ -320,60 +304,22 @@ export function PerguntaFormModal({
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Formato de resposta *
-                  </label>
-                  <select
-                    value={form.SEQ_TIPO_FORMATO_RESPOSTA}
-                    onChange={(e) => updateField('SEQ_TIPO_FORMATO_RESPOSTA', e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                  >
-                    <option value="">Selecione...</option>
-                    {lookups?.data.formatos.map((f) => (
-                      <option key={f.SEQ_TIPO_FORMATO_RESPOSTA} value={String(f.SEQ_TIPO_FORMATO_RESPOSTA)}>
-                        {f.DSC_TIPO_FORMATO_RESPOSTA}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Variável *
-                  </label>
-                  <select
-                    value={form.SEQ_TIPO_VARIAVEL_PERGUNTA}
-                    onChange={(e) => updateField('SEQ_TIPO_VARIAVEL_PERGUNTA', e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                  >
-                    <option value="">Selecione...</option>
-                    {lookups?.data.variaveis.map((v) => (
-                      <option key={v.SEQ_TIPO_VARIAVEL_PERGUNTA} value={String(v.SEQ_TIPO_VARIAVEL_PERGUNTA)}>
-                        {v.DSC_TIPO_VARIAVEL_PERGUNTA || `Variável ${v.SEQ_TIPO_VARIAVEL_PERGUNTA}`}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Periodicidade *
-                  </label>
-                  <select
-                    value={form.SEQ_TIPO_PERIODICIDADE_PERGUNTA}
-                    onChange={(e) => updateField('SEQ_TIPO_PERIODICIDADE_PERGUNTA', e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                  >
-                    <option value="">Selecione...</option>
-                    {lookups?.data.periodicidades.map((p) => (
-                      <option key={p.SEQ_TIPO_PERIODICIDADE_PERGUNTA} value={String(p.SEQ_TIPO_PERIODICIDADE_PERGUNTA)}>
-                        {p.DSC_TIPO_PERIODICIDADE_PERGUNTA}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Formato de resposta *
+                </label>
+                <select
+                  value={form.SEQ_TIPO_FORMATO_RESPOSTA}
+                  onChange={(e) => updateField('SEQ_TIPO_FORMATO_RESPOSTA', e.target.value)}
+                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                >
+                  <option value="">Selecione...</option>
+                  {lookups?.data.formatos.map((f) => (
+                    <option key={f.SEQ_TIPO_FORMATO_RESPOSTA} value={String(f.SEQ_TIPO_FORMATO_RESPOSTA)}>
+                      {f.DSC_TIPO_FORMATO_RESPOSTA}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>

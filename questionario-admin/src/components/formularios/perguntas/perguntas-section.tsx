@@ -12,7 +12,7 @@ import {
 } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { Hash, FileText, Trash2, Loader2 } from 'lucide-react';
-import type { CategoriaGrupo } from '@/lib/types/questionario';
+import type { CategoriaGrupo, ReordenarPerguntaItem } from '@/lib/types/questionario';
 import { CategoriaDroppable } from './categoria-droppable';
 import { PerguntasToolbar } from './perguntas-toolbar';
 import { PerguntaFormModal } from './pergunta-form-modal';
@@ -105,6 +105,98 @@ export function PerguntasSection({
     setPerguntaModalOpen(true);
   }
 
+  // Sort mutation (reuses the same reorder API)
+  const sortMutation = useMutation({
+    mutationFn: async (ordens: ReordenarPerguntaItem[]) => {
+      const res = await fetch(`/api/questionarios/${questionarioId}/perguntas/reordenar`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ordens }),
+      });
+      if (!res.ok) {
+        const json = await res.json();
+        throw new Error(json.error || 'Erro ao ordenar');
+      }
+    },
+    onError: () => {
+      queryClient.invalidateQueries({ queryKey: ['questionario', questionarioId] });
+    },
+  });
+
+  function handleSortCategoria(seqCategoria: number | null) {
+    const catIndex = categorias.findIndex((c) => c.SEQ_CATEGORIA_PERGUNTA === seqCategoria);
+    if (catIndex < 0) return;
+
+    const cat = categorias[catIndex];
+    if (cat.perguntas.length <= 1) return;
+
+    // Ordenação natural: trata segmentos numéricos como números
+    // Ex: "1.2" < "1.10" (compara 2 vs 10 numericamente)
+    const naturalCompare = (a: string, b: string): number => {
+      const partsA = a.split('.');
+      const partsB = b.split('.');
+      const len = Math.max(partsA.length, partsB.length);
+      for (let i = 0; i < len; i++) {
+        const pa = partsA[i] ?? '';
+        const pb = partsB[i] ?? '';
+        const na = Number(pa);
+        const nb = Number(pb);
+        if (!isNaN(na) && !isNaN(nb)) {
+          if (na !== nb) return na - nb;
+        } else {
+          const cmp = pa.localeCompare(pb);
+          if (cmp !== 0) return cmp;
+        }
+      }
+      return 0;
+    };
+
+    // Sort perguntas: COD_PERGUNTA ascending natural (nulls last), then DSC_PERGUNTA ascending
+    const sortedPerguntas = [...cat.perguntas].sort((a, b) => {
+      if (a.COD_PERGUNTA && b.COD_PERGUNTA) {
+        const cmp = naturalCompare(a.COD_PERGUNTA, b.COD_PERGUNTA);
+        if (cmp !== 0) return cmp;
+      }
+      if (a.COD_PERGUNTA && !b.COD_PERGUNTA) return -1;
+      if (!a.COD_PERGUNTA && b.COD_PERGUNTA) return 1;
+      return (a.DSC_PERGUNTA || '').localeCompare(b.DSC_PERGUNTA || '');
+    });
+
+    // Build new categorias with sorted category
+    const newCategorias = categorias.map((c, i) =>
+      i === catIndex ? { ...c, perguntas: sortedPerguntas } : c
+    );
+
+    // Build reorder payload for ALL perguntas (all categories)
+    const ordens: ReordenarPerguntaItem[] = [];
+    for (const c of newCategorias) {
+      c.perguntas.forEach((p, i) => {
+        ordens.push({
+          SEQ_PERGUNTA: p.SEQ_PERGUNTA,
+          NUM_ORDEM: i + 1,
+          SEQ_CATEGORIA_PERGUNTA: c.SEQ_CATEGORIA_PERGUNTA,
+        });
+      });
+    }
+
+    // Optimistic update
+    queryClient.setQueryData(
+      ['questionario', questionarioId],
+      (old: { success: boolean; data: Record<string, unknown> } | undefined) => {
+        if (!old) return old;
+        return {
+          ...old,
+          data: {
+            ...old.data,
+            categorias: newCategorias,
+          },
+        };
+      }
+    );
+
+    sortMutation.mutate(ordens);
+  }
+
   // Calculate global index per pergunta
   let globalIndex = 0;
 
@@ -164,6 +256,7 @@ export function PerguntasSection({
                     onRename={(catId, nome) => renameCategoriaMutation.mutate({ catId, nome })}
                     onEditPergunta={handleEditPergunta}
                     onDeletePergunta={handleDeletePergunta}
+                    onSortCategoria={handleSortCategoria}
                   />
                 );
               })}
@@ -192,12 +285,14 @@ export function PerguntasSection({
       </div>
 
       {/* Error toasts */}
-      {(renameCategoriaMutation.error || reorderError) && (
+      {(renameCategoriaMutation.error || reorderError || sortMutation.error) && (
         <div className="fixed bottom-4 right-4 bg-red-100 border border-red-300 text-red-800 px-4 py-3 rounded-lg shadow-lg z-50">
           {renameCategoriaMutation.error instanceof Error
             ? renameCategoriaMutation.error.message
             : reorderError instanceof Error
             ? reorderError.message
+            : sortMutation.error instanceof Error
+            ? sortMutation.error.message
             : 'Erro'}
         </div>
       )}

@@ -19,10 +19,11 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
-import type { QuestionarioResumo, StatusPublicacao } from '@/lib/types/questionario';
+import type { QuestionarioResumo } from '@/lib/types/questionario';
 
 interface FormulariosContentProps {
   nomPerfil?: string;
+  tipo: 'periodico' | 'sob-demanda';
 }
 
 interface ListagemResponse {
@@ -33,26 +34,25 @@ interface ListagemResponse {
   totalPaginas: number;
 }
 
-export function FormulariosContent({ nomPerfil }: FormulariosContentProps) {
+export function FormulariosContent({ nomPerfil, tipo }: FormulariosContentProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const perfilUpper = nomPerfil?.toUpperCase() ?? '';
   const canEdit = perfilUpper === 'ADMINISTRADOR' || perfilUpper === 'PESQUISADOR';
 
   const [busca, setBusca] = useState('');
-  const [status, setStatus] = useState<StatusPublicacao | ''>('');
   const [pagina, setPagina] = useState(1);
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
   const [confirmPublish, setConfirmPublish] = useState<number | null>(null);
 
-  const queryKey = ['questionarios', busca, status, pagina];
+  const queryKey = ['questionarios', tipo, busca, pagina];
 
   const { data, isLoading, error } = useQuery<{ success: boolean; data: ListagemResponse }>({
     queryKey,
     queryFn: async () => {
       const params = new URLSearchParams();
       if (busca) params.set('busca', busca);
-      if (status) params.set('status', status);
+      params.set('tipo', tipo);
       params.set('pagina', String(pagina));
       params.set('porPagina', '20');
       const res = await fetch(`/api/questionarios?${params}`);
@@ -118,15 +118,19 @@ export function FormulariosContent({ nomPerfil }: FormulariosContentProps) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Formulários</h2>
+          <h2 className="text-2xl font-bold text-gray-900">
+            {tipo === 'periodico' ? 'Formulários Periódicos' : 'Formulários Sob Demanda'}
+          </h2>
           <p className="text-gray-500 mt-1">
-            Gerencie os formulários do sistema
+            {tipo === 'periodico'
+              ? 'Formulários com preenchimento recorrente'
+              : 'Formulários com período específico de disponibilidade'}
           </p>
         </div>
 
         {canEdit && (
           <Link
-            href="/formularios/novo"
+            href={`/formularios/novo?tipo=${tipo}`}
             className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
           >
             <Plus className="w-4 h-4 mr-2" />
@@ -148,15 +152,6 @@ export function FormulariosContent({ nomPerfil }: FormulariosContentProps) {
               className="w-full pl-10 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
-          <select
-            value={status}
-            onChange={(e) => { setStatus(e.target.value as StatusPublicacao | ''); setPagina(1); }}
-            className="px-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">Todos os status</option>
-            <option value="RASCUNHO">Rascunho</option>
-            <option value="PUBLICADO">Publicado</option>
-          </select>
         </form>
       </div>
 
@@ -177,7 +172,7 @@ export function FormulariosContent({ nomPerfil }: FormulariosContentProps) {
             <FileText className="w-12 h-12 text-gray-300 mb-3" />
             <p className="font-medium">Nenhum formulário encontrado</p>
             <p className="text-sm mt-1">
-              {busca || status ? 'Tente ajustar os filtros' : 'Crie o primeiro formulário'}
+              {busca ? 'Tente ajustar a busca' : 'Crie o primeiro formulário'}
             </p>
           </div>
         ) : (
@@ -252,9 +247,13 @@ export function FormulariosContent({ nomPerfil }: FormulariosContentProps) {
                           {canEdit && q.DSC_STATUS === 'PUBLICADO' && (
                             <button
                               onClick={() => novaVersaoMutation.mutate(q.SEQ_QUESTIONARIO)}
-                              className="p-1.5 text-gray-400 hover:text-purple-600 rounded-lg hover:bg-purple-50"
-                              title="Nova versão"
-                              disabled={novaVersaoMutation.isPending}
+                              className={`p-1.5 rounded-lg ${
+                                q.TEM_RASCUNHO
+                                  ? 'text-gray-300 cursor-not-allowed'
+                                  : 'text-gray-400 hover:text-purple-600 hover:bg-purple-50'
+                              }`}
+                              title={q.TEM_RASCUNHO ? 'Já existe versão em rascunho' : 'Nova versão'}
+                              disabled={novaVersaoMutation.isPending || q.TEM_RASCUNHO}
                             >
                               <Copy className="w-4 h-4" />
                             </button>

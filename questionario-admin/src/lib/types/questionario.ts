@@ -35,17 +35,33 @@ export interface QuestionarioResumo {
   QTD_PERGUNTAS: number;
   QTD_RESPOSTAS: number;
   COD_ESCOPO_RESPOSTA: EscopoResposta;
+  TEM_RASCUNHO: boolean;
+  SEQ_TIPO_PERIODICIDADE_PERGUNTA: number | null;
+}
+
+export interface VersaoResumo {
+  SEQ_QUESTIONARIO: number;
+  NUM_VERSAO: number;
+  DSC_STATUS: StatusPublicacao;
+  DAT_PUBLICACAO: Date | null;
 }
 
 export interface QuestionarioCompleto extends QuestionarioResumo {
   DSC_QUESTIONARIO: string;
-  NUM_MES_LIMITE: number;
+  NUM_MES_LIMITE: number | null;
   NUM_DIA_LIMITE: number | null;
   DSC_OBSERVACAO_QUESTIONARIO: string | null;
-  DSC_TIPO_PERIODICIDADE: string;
+  DSC_TIPO_PERIODICIDADE: string | null;
+  SEQ_TIPO_PERIODICIDADE_PERGUNTA: number | null;
   SEQ_ORGAO_ESCOPO: number | null;
+  DSC_TIPO_ESCOPO: string | null;
+  DSC_DETALHES: string | null;
   QTD_CATEGORIAS: number;
   categorias: CategoriaGrupo[];
+  versoes: VersaoResumo[];
+  DAT_ATIVACAO_FORMULARIO: Date | null;
+  DAT_INATIVACAO_FORMULARIO: Date | null;
+  escopoOrgaos: number[]; // SEQ_ORGAO dos tribunais/órgãos vinculados ao escopo
 }
 
 export interface CategoriaGrupo {
@@ -77,10 +93,6 @@ export interface PerguntaCompleta extends PerguntaResumo {
   TXT_JSON_ARRAY_RESPOSTAS: string | null;
   opcoes: string[]; // Parseado de TXT_JSON_ARRAY_RESPOSTAS
   SEQ_TIPO_FORMATO_RESPOSTA: number;
-  SEQ_TIPO_VARIAVEL_PERGUNTA: number;
-  SEQ_TIPO_PERIODICIDADE_PERGUNTA: number;
-  DSC_TIPO_PERIODICIDADE: string;
-  DSC_TIPO_VARIAVEL: string;
   DAT_CRIACAO_PERGUNTA: Date;
   DAT_PUBLICACAO: Date | null;
 }
@@ -90,12 +102,6 @@ export interface FormatoResposta {
   SEQ_TIPO_FORMATO_RESPOSTA: number;
   COD_TIPO_FORMATO_RESPOSTA: number;
   DSC_TIPO_FORMATO_RESPOSTA: string;
-}
-
-// Lookup de variáveis de pergunta
-export interface VariavelPergunta {
-  SEQ_TIPO_VARIAVEL_PERGUNTA: number;
-  DSC_TIPO_VARIAVEL_PERGUNTA: string | null;
 }
 
 // Payload do reorder (drag-and-drop)
@@ -125,28 +131,31 @@ export interface CategoriaResumo {
 export interface CriarQuestionarioInput {
   NOM_QUESTIONARIO: string;
   DSC_QUESTIONARIO: string;
-  SEQ_TIPO_PERIODICIDADE_PERGUNTA: number;
-  NUM_MES_LIMITE: number;
+  SEQ_TIPO_PERIODICIDADE_PERGUNTA?: number | null; // null = sob demanda
+  NUM_MES_LIMITE?: number | null;
   NUM_DIA_LIMITE?: number;
   DSC_OBSERVACAO_QUESTIONARIO?: string;
   COD_ESCOPO_RESPOSTA?: EscopoResposta;
-  SEQ_ORGAO_ESCOPO?: number; // Para escopo ORGAO
+  SEQ_ORGAO_ESCOPO?: number;   // Tribunal de referência (escopo ORGAO)
+  escopoOrgaos?: number[];     // IDs dos órgãos/tribunais selecionados
+  DAT_ATIVACAO_FORMULARIO?: string;   // ISO date string
+  DAT_INATIVACAO_FORMULARIO?: string;  // ISO date string
 }
 
 export interface EditarQuestionarioInput {
   NOM_QUESTIONARIO?: string;
   DSC_QUESTIONARIO?: string;
-  NUM_MES_LIMITE?: number;
-  NUM_DIA_LIMITE?: number;
+  NUM_MES_LIMITE?: number | null;
+  NUM_DIA_LIMITE?: number | null;
   DSC_OBSERVACAO_QUESTIONARIO?: string;
+  DAT_ATIVACAO_FORMULARIO?: string;   // ISO date string
+  DAT_INATIVACAO_FORMULARIO?: string;  // ISO date string
 }
 
 export interface CriarPerguntaInput {
   SEQ_QUESTIONARIO: number;
   DSC_PERGUNTA: string;
   SEQ_TIPO_FORMATO_RESPOSTA: number;
-  SEQ_TIPO_PERIODICIDADE_PERGUNTA: number;
-  SEQ_TIPO_VARIAVEL_PERGUNTA: number;
   SEQ_CATEGORIA_PERGUNTA?: number;
   COD_PERGUNTA?: string;
   DSC_COMPLEMENTO_PERGUNTA?: string;

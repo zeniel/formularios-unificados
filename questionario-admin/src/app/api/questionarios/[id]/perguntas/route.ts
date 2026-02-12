@@ -22,9 +22,9 @@ export async function POST(request: NextRequest, { params }: Params) {
     const { id } = await params;
     const body = await request.json();
 
-    if (!body.DSC_PERGUNTA || !body.SEQ_TIPO_FORMATO_RESPOSTA || !body.SEQ_TIPO_PERIODICIDADE_PERGUNTA || !body.SEQ_TIPO_VARIAVEL_PERGUNTA) {
+    if (!body.DSC_PERGUNTA || !body.SEQ_TIPO_FORMATO_RESPOSTA) {
       return NextResponse.json(
-        { error: 'Campos obrigatórios: DSC_PERGUNTA, SEQ_TIPO_FORMATO_RESPOSTA, SEQ_TIPO_PERIODICIDADE_PERGUNTA, SEQ_TIPO_VARIAVEL_PERGUNTA' },
+        { error: 'Campos obrigatórios: DSC_PERGUNTA, SEQ_TIPO_FORMATO_RESPOSTA' },
         { status: 400 }
       );
     }

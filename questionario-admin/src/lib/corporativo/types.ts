@@ -58,6 +58,14 @@ export interface OrgaoCorporativo {
 }
 
 /**
+ * Resumo de órgão (retornado pela busca de órgãos por tribunal)
+ */
+export interface OrgaoResumoCorporativo {
+  seqOrgao: number;
+  dscOrgao: string;
+}
+
+/**
  * Contexto completo do usuário (usado para avaliação de filtros)
  */
 export interface ContextoUsuario {

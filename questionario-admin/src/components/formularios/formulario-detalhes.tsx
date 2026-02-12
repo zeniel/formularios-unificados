@@ -14,10 +14,144 @@ import {
   AlertTriangle,
   Calendar,
   Info,
+  HelpCircle,
 } from 'lucide-react';
-import { formatDateTime } from '@/lib/utils';
+import { formatDateTime, formatDate } from '@/lib/utils';
 import type { QuestionarioCompleto } from '@/lib/types/questionario';
 import { isEditavel } from '@/lib/types/questionario';
+
+// Nomes dos meses em pt-BR
+const NOMES_MESES = [
+  '', 'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
+  'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro',
+];
+
+function getTextoPrazo(q: QuestionarioCompleto): { resumo: string; ajuda: string } {
+  const dia = q.NUM_DIA_LIMITE ? `dia ${q.NUM_DIA_LIMITE}` : 'último dia';
+  const cod = q.SEQ_TIPO_PERIODICIDADE_PERGUNTA;
+
+  switch (cod) {
+    case 1: // Mensal
+      return {
+        resumo: `Até ${dia} do mês seguinte`,
+        ajuda: `Prazo até ${dia} do mês seguinte ao período de referência.`,
+      };
+    case 2: // Semestral
+      return {
+        resumo: `Até ${dia} do 1\u00BA mês do semestre seguinte (jan ou jul)`,
+        ajuda: `Prazo até ${dia} do 1\u00BA mês do semestre seguinte. Meses possíveis: janeiro, julho.`,
+      };
+    case 3: { // Anual
+      const mes = NOMES_MESES[q.NUM_MES_LIMITE ?? 0] || `mês ${q.NUM_MES_LIMITE}`;
+      return {
+        resumo: `Até ${dia} de ${mes} do ano seguinte`,
+        ajuda: `Prazo até ${dia} de ${mes} do ano seguinte ao período de referência.`,
+      };
+    }
+    case 4: // Trimestral
+      return {
+        resumo: `Até ${dia} do 1\u00BA mês do trimestre seguinte (jan, abr, jul ou out)`,
+        ajuda: `Prazo até ${dia} do 1\u00BA mês do trimestre seguinte. Meses possíveis: janeiro, abril, julho, outubro.`,
+      };
+    default:
+      return {
+        resumo: q.NUM_DIA_LIMITE ? `Dia ${q.NUM_DIA_LIMITE}, mês ${q.NUM_MES_LIMITE}` : '-',
+        ajuda: '',
+      };
+  }
+}
+
+function getAjudaPeriodicidade(cod: number): string {
+  switch (cod) {
+    case 1: return 'Os dados devem ser enviados todo mês. O mês limite é sempre o mês corrente.';
+    case 2: return 'Os dados devem ser enviados a cada semestre. Períodos: jan-jun e jul-dez.';
+    case 3: return 'Os dados devem ser enviados uma vez por ano, referentes ao ano anterior.';
+    case 4: return 'Os dados devem ser enviados a cada trimestre. Períodos: jan-mar, abr-jun, jul-set, out-dez.';
+    default: return '';
+  }
+}
+// Nomes dos meses em pt-BR (capitalizados, para exibição)
+const NOMES_MESES_CAP = [
+  '', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
+];
+
+function ultimoDiaDoMes(ano: number, mes: number): number {
+  return new Date(ano, mes, 0).getDate();
+}
+
+function calcularPeriodoReferencia(q: QuestionarioCompleto): { periodoRef: string; dataLimite: string } | null {
+  if (q.SEQ_TIPO_PERIODICIDADE_PERGUNTA === null) return null;
+
+  const agora = new Date();
+  const anoAtual = agora.getFullYear();
+  const mesAtual = agora.getMonth() + 1; // 1-12
+  const cod = q.SEQ_TIPO_PERIODICIDADE_PERGUNTA;
+
+  function formatarDataLimite(ano: number, mes: number, dia: number | null): string {
+    const d = dia ?? ultimoDiaDoMes(ano, mes);
+    return `${String(d).padStart(2, '0')}/${String(mes).padStart(2, '0')}/${ano}`;
+  }
+
+  switch (cod) {
+    case 1: { // Mensal - período de referência = mês anterior
+      let mesRef = mesAtual - 1;
+      let anoRef = anoAtual;
+      if (mesRef === 0) { mesRef = 12; anoRef = anoAtual - 1; }
+      return {
+        periodoRef: `${NOMES_MESES_CAP[mesRef]}/${anoRef}`,
+        dataLimite: formatarDataLimite(anoAtual, mesAtual, q.NUM_DIA_LIMITE),
+      };
+    }
+    case 2: { // Semestral - período = semestre anterior
+      const semestreAtual = mesAtual <= 6 ? 1 : 2;
+      if (semestreAtual === 1) {
+        // Estamos no 1o semestre, ref = 2o semestre do ano anterior
+        return {
+          periodoRef: `2\u00BA Semestre/${anoAtual - 1}`,
+          dataLimite: formatarDataLimite(anoAtual, 1, q.NUM_DIA_LIMITE),
+        };
+      } else {
+        // Estamos no 2o semestre, ref = 1o semestre do ano atual
+        return {
+          periodoRef: `1\u00BA Semestre/${anoAtual}`,
+          dataLimite: formatarDataLimite(anoAtual, 7, q.NUM_DIA_LIMITE),
+        };
+      }
+    }
+    case 3: { // Anual - período = ano anterior
+      return {
+        periodoRef: `${anoAtual - 1}`,
+        dataLimite: formatarDataLimite(anoAtual, q.NUM_MES_LIMITE ?? 1, q.NUM_DIA_LIMITE),
+      };
+    }
+    case 4: { // Trimestral - período = trimestre anterior
+      const trimestreAtual = Math.ceil(mesAtual / 3);
+      const primeiroMesTrimestreAtual = (trimestreAtual - 1) * 3 + 1;
+      let trimestreRef = trimestreAtual - 1;
+      let anoRef = anoAtual;
+      if (trimestreRef === 0) { trimestreRef = 4; anoRef = anoAtual - 1; }
+      return {
+        periodoRef: `${trimestreRef}\u00BA Trimestre/${anoRef}`,
+        dataLimite: formatarDataLimite(anoAtual, primeiroMesTrimestreAtual, q.NUM_DIA_LIMITE),
+      };
+    }
+    default:
+      return null;
+  }
+}
+
+function getStatusSobDemanda(q: QuestionarioCompleto): { label: string; ativo: boolean } {
+  const agora = new Date();
+  const ativacao = q.DAT_ATIVACAO_FORMULARIO ? new Date(q.DAT_ATIVACAO_FORMULARIO) : null;
+  const inativacao = q.DAT_INATIVACAO_FORMULARIO ? new Date(q.DAT_INATIVACAO_FORMULARIO) : null;
+
+  if (!ativacao) return { label: 'Sem data definida', ativo: false };
+  if (agora < ativacao) return { label: 'Aguardando ativação', ativo: false };
+  if (inativacao && agora > inativacao) return { label: 'Encerrado', ativo: false };
+  return { label: 'Ativo', ativo: true };
+}
+
 import { PerguntasSection } from './perguntas/perguntas-section';
 
 interface FormularioDetalhesProps {
@@ -66,7 +200,8 @@ export function FormularioDetalhes({ id, nomPerfil }: FormularioDetalhesProps) {
       }
     },
     onSuccess: () => {
-      router.push('/formularios');
+      const tipo = data?.data?.SEQ_TIPO_PERIODICIDADE_PERGUNTA === null ? 'sob-demanda' : 'periodicos';
+      router.push(`/formularios/${tipo}`);
     },
   });
 
@@ -98,7 +233,7 @@ export function FormularioDetalhes({ id, nomPerfil }: FormularioDetalhesProps) {
   if (error || !data?.data) {
     return (
       <div className="space-y-4">
-        <Link href="/formularios" className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700">
+        <Link href="/formularios/periodicos" className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700">
           <ArrowLeft className="w-4 h-4 mr-1" /> Voltar
         </Link>
         <div className="flex items-center justify-center py-12 text-red-500">
@@ -111,6 +246,10 @@ export function FormularioDetalhes({ id, nomPerfil }: FormularioDetalhesProps) {
 
   const q = data.data;
   const editavel = isEditavel(q.DSC_STATUS);
+  const isSobDemanda = q.SEQ_TIPO_PERIODICIDADE_PERGUNTA === null;
+  const voltarHref = isSobDemanda ? '/formularios/sob-demanda' : '/formularios/periodicos';
+  const periodoRef = !isSobDemanda ? calcularPeriodoReferencia(q) : null;
+  const statusSobDemanda = isSobDemanda ? getStatusSobDemanda(q) : null;
 
   return (
     <div className="space-y-6">
@@ -118,7 +257,7 @@ export function FormularioDetalhes({ id, nomPerfil }: FormularioDetalhesProps) {
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-4">
           <Link
-            href="/formularios"
+            href={voltarHref}
             className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
           >
             <ArrowLeft className="w-5 h-5" />
@@ -161,8 +300,9 @@ export function FormularioDetalhes({ id, nomPerfil }: FormularioDetalhesProps) {
             {!editavel && (
               <button
                 onClick={() => novaVersaoMutation.mutate()}
-                disabled={novaVersaoMutation.isPending}
+                disabled={novaVersaoMutation.isPending || q.TEM_RASCUNHO}
                 className="inline-flex items-center px-3 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
+                title={q.TEM_RASCUNHO ? 'Já existe versão em rascunho' : undefined}
               >
                 {novaVersaoMutation.isPending ? (
                   <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
@@ -202,21 +342,100 @@ export function FormularioDetalhes({ id, nomPerfil }: FormularioDetalhesProps) {
           </h3>
           <dl className="space-y-3">
             <div className="flex justify-between">
-              <dt className="text-sm text-gray-500">Periodicidade</dt>
-              <dd className="text-sm font-medium">{q.DSC_TIPO_PERIODICIDADE}</dd>
-            </div>
-            <div className="flex justify-between">
               <dt className="text-sm text-gray-500">Escopo</dt>
-              <dd className="text-sm font-medium">{q.COD_ESCOPO_RESPOSTA || '-'}</dd>
+              <dd className="text-sm font-medium flex items-center gap-1">
+                {q.DSC_TIPO_ESCOPO || q.COD_ESCOPO_RESPOSTA || '-'}
+                {q.DSC_DETALHES && (
+                  <span title={q.DSC_DETALHES}>
+                    <HelpCircle className="w-4 h-4 text-gray-400 cursor-help" />
+                  </span>
+                )}
+              </dd>
             </div>
-            <div className="flex justify-between">
-              <dt className="text-sm text-gray-500">Mês Limite</dt>
-              <dd className="text-sm font-medium">{q.NUM_MES_LIMITE}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-sm text-gray-500">Dia Limite</dt>
-              <dd className="text-sm font-medium">{q.NUM_DIA_LIMITE ?? '-'}</dd>
-            </div>
+
+            {q.escopoOrgaos.length > 0 && (
+              <div>
+                <dt className="text-sm text-gray-500 mb-1">
+                  {q.COD_ESCOPO_RESPOSTA === 'TRIBUNAL' ? 'Tribunais' : 'Órgãos'} vinculados ({q.escopoOrgaos.length})
+                </dt>
+                <dd className="text-xs text-gray-600">
+                  {q.escopoOrgaos.map(id => `#${id}`).join(', ')}
+                </dd>
+              </div>
+            )}
+
+            {!isSobDemanda ? (
+              <>
+                <div className="flex justify-between">
+                  <dt className="text-sm text-gray-500 flex items-center gap-1">
+                    Periodicidade
+                    {getAjudaPeriodicidade(q.SEQ_TIPO_PERIODICIDADE_PERGUNTA!) && (
+                      <span title={getAjudaPeriodicidade(q.SEQ_TIPO_PERIODICIDADE_PERGUNTA!)}>
+                        <HelpCircle className="w-3.5 h-3.5 text-gray-400 cursor-help" />
+                      </span>
+                    )}
+                  </dt>
+                  <dd className="text-sm font-medium">{q.DSC_TIPO_PERIODICIDADE}</dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-sm text-gray-500 flex items-center gap-1">
+                    Prazo
+                    {getTextoPrazo(q).ajuda && (
+                      <span title={getTextoPrazo(q).ajuda}>
+                        <HelpCircle className="w-3.5 h-3.5 text-gray-400 cursor-help" />
+                      </span>
+                    )}
+                  </dt>
+                  <dd className="text-sm font-medium">{getTextoPrazo(q).resumo}</dd>
+                </div>
+                {periodoRef && (
+                  <>
+                    <div className="flex justify-between">
+                      <dt className="text-sm text-gray-500">Período de Referência Atual</dt>
+                      <dd className="text-sm font-medium">{periodoRef.periodoRef}</dd>
+                    </div>
+                    <div className="flex justify-between">
+                      <dt className="text-sm text-gray-500">Data Limite de Preenchimento</dt>
+                      <dd className="text-sm font-medium">{periodoRef.dataLimite}</dd>
+                    </div>
+                  </>
+                )}
+              </>
+            ) : (
+              <>
+                <div className="flex justify-between">
+                  <dt className="text-sm text-gray-500">Tipo</dt>
+                  <dd className="text-sm font-medium">Sob Demanda</dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-sm text-gray-500">Ativação</dt>
+                  <dd className="text-sm font-medium">
+                    {q.DAT_ATIVACAO_FORMULARIO ? formatDate(q.DAT_ATIVACAO_FORMULARIO) : '-'}
+                  </dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-sm text-gray-500">Inativação</dt>
+                  <dd className="text-sm font-medium">
+                    {q.DAT_INATIVACAO_FORMULARIO ? formatDate(q.DAT_INATIVACAO_FORMULARIO) : 'Indefinida'}
+                  </dd>
+                </div>
+                {statusSobDemanda && (
+                  <div className="flex justify-between">
+                    <dt className="text-sm text-gray-500">Disponibilidade</dt>
+                    <dd>
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                        statusSobDemanda.ativo
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-gray-100 text-gray-600'
+                      }`}>
+                        {statusSobDemanda.label}
+                      </span>
+                    </dd>
+                  </div>
+                )}
+              </>
+            )}
+
             {q.DSC_OBSERVACAO_QUESTIONARIO && (
               <div>
                 <dt className="text-sm text-gray-500 mb-1">Observação</dt>
@@ -246,16 +465,6 @@ export function FormularioDetalhes({ id, nomPerfil }: FormularioDetalhesProps) {
               <dt className="text-sm text-gray-500">Versão</dt>
               <dd className="text-sm font-medium">v{q.NUM_VERSAO}</dd>
             </div>
-            {q.SEQ_QUESTIONARIO_BASE && (
-              <div className="flex justify-between">
-                <dt className="text-sm text-gray-500">Versão base</dt>
-                <dd className="text-sm">
-                  <Link href={`/formularios/${q.SEQ_QUESTIONARIO_BASE}`} className="text-blue-600 hover:underline">
-                    #{q.SEQ_QUESTIONARIO_BASE}
-                  </Link>
-                </dd>
-              </div>
-            )}
             <div className="flex justify-between">
               <dt className="text-sm text-gray-500">Categorias</dt>
               <dd className="text-sm font-medium">{q.QTD_CATEGORIAS}</dd>
@@ -269,6 +478,28 @@ export function FormularioDetalhes({ id, nomPerfil }: FormularioDetalhesProps) {
               <dd className="text-sm font-medium">{q.QTD_RESPOSTAS.toLocaleString('pt-BR')}</dd>
             </div>
           </dl>
+
+          {/* Versões deste formulário */}
+          {q.versoes.length > 0 && (
+            <div className="pt-3 border-t">
+              <h4 className="text-sm font-medium text-gray-500 mb-2">Versões deste formulário</h4>
+              <ul className="space-y-1">
+                {q.versoes.map((v) => (
+                  <li key={v.SEQ_QUESTIONARIO} className="flex items-center justify-between text-sm">
+                    <Link
+                      href={`/formularios/${v.SEQ_QUESTIONARIO}`}
+                      className="text-blue-600 hover:underline"
+                    >
+                      v{v.NUM_VERSAO}
+                    </Link>
+                    <span className="text-gray-400">
+                      {v.DAT_PUBLICACAO ? formatDate(v.DAT_PUBLICACAO) : '-'}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       </div>
 

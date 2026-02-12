@@ -1,13 +1,9 @@
 // src/app/api/perguntas/lookup/route.ts
-// GET - Lookups: formatos, variáveis, periodicidades
+// GET - Lookups: formatos de resposta
 
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
-import {
-  listarFormatosResposta,
-  listarVariaveisPergunta,
-  listarPeriodicidades,
-} from '@/lib/questionarios/repository';
+import { listarFormatosResposta } from '@/lib/questionarios/repository';
 
 export async function GET() {
   const session = await getSession();
@@ -16,15 +12,11 @@ export async function GET() {
   }
 
   try {
-    const [formatos, variaveis, periodicidades] = await Promise.all([
-      listarFormatosResposta(),
-      listarVariaveisPergunta(),
-      listarPeriodicidades(),
-    ]);
+    const formatos = await listarFormatosResposta();
 
     return NextResponse.json({
       success: true,
-      data: { formatos, variaveis, periodicidades },
+      data: { formatos },
     });
   } catch (error) {
     console.error('[api/perguntas/lookup] Erro:', error);

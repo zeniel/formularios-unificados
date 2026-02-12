@@ -15,9 +15,9 @@ interface TribunalRow {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: { sigla: string } }
 ) {
-  const sigla = params.id.toUpperCase().trim();
+  const sigla = params.sigla.toUpperCase().trim();
 
   try {
     if (!sigla) {
