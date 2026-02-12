@@ -7,11 +7,7 @@ import { cn } from '@/lib/utils';
 import {
   LayoutDashboard,
   FileText,
-  HelpCircle,
-  FolderTree,
   Settings,
-  Users,
-  BarChart3,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -22,7 +18,7 @@ interface NavItem {
   href: string;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
-  perfis: string[]; // Perfis que podem ver este item
+  perfis: string[];
 }
 
 const navItems: NavItem[] = [
@@ -33,34 +29,10 @@ const navItems: NavItem[] = [
     perfis: ['ADMINISTRADOR', 'VISUALIZADOR', 'PESQUISADOR'],
   },
   {
-    href: '/questionarios',
-    label: 'Questionários',
+    href: '/formularios',
+    label: 'Formulários',
     icon: FileText,
     perfis: ['ADMINISTRADOR', 'VISUALIZADOR', 'PESQUISADOR'],
-  },
-  {
-    href: '/perguntas',
-    label: 'Perguntas',
-    icon: HelpCircle,
-    perfis: ['ADMINISTRADOR', 'VISUALIZADOR', 'PESQUISADOR'],
-  },
-  {
-    href: '/categorias',
-    label: 'Categorias',
-    icon: FolderTree,
-    perfis: ['ADMINISTRADOR', 'PESQUISADOR'],
-  },
-  {
-    href: '/respostas',
-    label: 'Respostas',
-    icon: BarChart3,
-    perfis: ['ADMINISTRADOR', 'PESQUISADOR'],
-  },
-  {
-    href: '/usuarios',
-    label: 'Usuários',
-    icon: Users,
-    perfis: ['ADMINISTRADOR'],
   },
   {
     href: '/configuracoes',
@@ -74,7 +46,6 @@ export function Sidebar({ nomPerfil }: SidebarProps) {
   const pathname = usePathname();
   const perfilUpper = nomPerfil?.toUpperCase() ?? '';
 
-  // Filtrar itens de menu baseado no perfil do usuário
   const visibleItems = navItems.filter(item =>
     item.perfis.some(p => p === perfilUpper)
   );
@@ -87,7 +58,7 @@ export function Sidebar({ nomPerfil }: SidebarProps) {
           <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
             <FileText className="w-5 h-5 text-white" />
           </div>
-          <span className="font-semibold text-gray-900">Questionários</span>
+          <span className="font-semibold text-gray-900">Formulários</span>
         </Link>
       </div>
 
@@ -122,7 +93,7 @@ export function Sidebar({ nomPerfil }: SidebarProps) {
       {/* Footer */}
       <div className="p-4 border-t border-gray-200">
         <p className="text-xs text-gray-500 text-center">
-          Sistema de Questionários
+          Formulários Unificados CNJ
         </p>
         <p className="text-xs text-gray-400 text-center mt-1">
           v0.1.0
