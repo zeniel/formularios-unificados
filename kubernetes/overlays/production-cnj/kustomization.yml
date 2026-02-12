@@ -1,0 +1,19 @@
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: dcor-formularios-unificados-cnj
+
+images:
+- name: registry.cnj.jus.br/dcor/formularios-unificados-admin
+  newTag: "1.1.1"
+
+replicas:
+- name: formularios-unificados-admin
+  count: 2
+
+resources:
+- ../../base
+- ingress.yml
+- configmap.yml
+...

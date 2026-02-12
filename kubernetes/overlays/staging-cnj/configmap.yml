@@ -1,0 +1,10 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: formularios-unificados-admin-env
+  labels:
+    app: formularios-unificados-admin
+data:
+  LOG_LEVEL: LOG_DEBUG
+  DATABASE_DEBUG: "false"

@@ -1,0 +1,85 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: formularios-unificados-admin
+  labels:
+    app: formularios-unificados-admin
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: formularios-unificados-admin
+  template:
+    metadata:
+      annotations:
+        config.linkerd.io/skip-outbound-ports: "3306"
+      labels:
+        app: formularios-unificados-admin
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app: formularios-unificados-admin
+              topologyKey: kubernetes.io/hostname
+      containers:
+      - name: formularios-unificados-admin
+        image: registry.cnj.jus.br/dcor/formularios-unificados-admin:latest
+        imagePullPolicy: Always
+        envFrom:
+        - secretRef:
+            name: db-url-user-pass
+        - configMapRef:
+            name: formularios-unificados-admin-env
+        ports:
+        - containerPort: 3000
+          name: http
+        # Probes para app Next.js (GET /api/health retorna 200)
+        startupProbe:
+          httpGet:
+            path: /api/health
+            port: http
+          failureThreshold: 30
+          periodSeconds: 5
+          timeoutSeconds: 3
+        livenessProbe:
+          httpGet:
+            path: /api/health
+            port: http
+          initialDelaySeconds: 0
+          periodSeconds: 15
+          timeoutSeconds: 3
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /api/health
+            port: http
+          initialDelaySeconds: 0
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 2
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "2"
+          limits:
+            memory: "6Gi"
+            cpu: "2"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: formularios-unificados-admin
+  labels:
+    app: formularios-unificados-admin
+spec:
+  ports:
+  - name: http
+    port: 3000
+    targetPort: 3000
+  selector:
+    app: formularios-unificados-admin

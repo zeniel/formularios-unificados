@@ -1,0 +1,39 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: formularios-unificados-admin
+  namespace: dcor-formularios-unificados-cnj
+  annotations:
+    nginx.ingress.kubernetes.io/affinity: "cookie"
+    nginx.ingress.kubernetes.io/affinity-mode: "persistent"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "450"
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+  labels:
+    app: formularios-unificados-admin
+spec:
+  tls:
+  - hosts:
+    - wwwh.cnj.jus.br
+    - formularios-unificados-admin.stg.cloud.cnj.jus.br
+  rules:
+  - host: wwwh.cnj.jus.br
+    http:
+      paths:
+      - path: /formularios-unificados-admin
+        pathType: Prefix
+        backend:
+          service:
+            name: formularios-unificados-admin
+            port:
+              name: http
+  - host: formularios-unificados-admin.stg.cloud.cnj.jus.br
+    http:
+      paths:
+      - path: /formularios-unificados-admin
+        pathType: Prefix
+        backend:
+          service:
+            name: formularios-unificados-admin
+            port:
+              name: http
