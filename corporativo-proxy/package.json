@@ -1,0 +1,24 @@
+{
+  "name": "corporativo-proxy",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Proxy API para acesso ao banco corporativo do CNJ",
+  "scripts": {
+    "dev": "next dev --turbopack -p 3001",
+    "build": "next build",
+    "start": "next start -p 3001",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "next": "15.5.12",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "mysql2": "^3.9.0",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "@types/node": "^20.11.0",
+    "@types/react": "^19"
+  }
+}

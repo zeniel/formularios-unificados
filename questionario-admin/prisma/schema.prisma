@@ -1,0 +1,272 @@
+// prisma/schema.prisma
+// Schema mapeando o banco existente + novas tabelas do sistema admin
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("QUESTIONARIOS_DATABASE_URL")
+}
+
+// ============================================================================
+// TABELAS DE TIPO (LOOKUP)
+// ============================================================================
+
+model TipoFormatoResposta {
+  SEQ_TIPO_FORMATO_RESPOSTA Int     @id @default(autoincrement())
+  DSC_TIPO_FORMATO_RESPOSTA String  @db.VarChar(50)
+  COD_TIPO_FORMATO_RESPOSTA Int
+  perguntas                 Pergunta[]
+
+  @@map("tipo_formato_resposta")
+}
+
+model TipoPeriodicidadePergunta {
+  SEQ_TIPO_PERIODICIDADE_PERGUNTA Int     @id @default(autoincrement())
+  DSC_TIPO_PERIODICIDADE_PERGUNTA String  @db.VarChar(30)
+  perguntas                       Pergunta[]
+  questionarios                   Questionario[]
+
+  @@map("tipo_periodicidade_pergunta")
+}
+
+model TipoVariavelPergunta {
+  SEQ_TIPO_VARIAVEL_PERGUNTA Int     @id @default(autoincrement())
+  DSC_TIPO_VARIAVEL_PERGUNTA String? @db.VarChar(20)
+  perguntas                  Pergunta[]
+
+  @@map("tipo_variavel_pergunta")
+}
+
+model TipoEscopoResposta {
+  SEQ_TIPO_ESCOPO_RESPOSTA Int     @id @default(autoincrement())
+  COD_TIPO_ESCOPO          String  @unique @db.VarChar(20)
+  DSC_TIPO_ESCOPO          String  @db.VarChar(200)
+  DSC_DETALHES             String? @db.Text
+  questionarios            Questionario[]
+
+  @@map("tipo_escopo_resposta")
+}
+
+// ============================================================================
+// CATEGORIA (com versionamento)
+// ============================================================================
+
+model CategoriaPergunta {
+  SEQ_CATEGORIA_PERGUNTA     Int       @id @default(autoincrement())
+  SEQ_CATEGORIA_BASE         Int?
+  NUM_VERSAO                 Int       @default(1)
+  DSC_STATUS                 String    @default("RASCUNHO") @db.VarChar(20)
+  DAT_PUBLICACAO             DateTime?
+  USU_PUBLICACAO             String?   @db.VarChar(30)
+  SEQ_CATEGORIA_PERGUNTA_PAI Int?
+  DSC_CATEGORIA_PERGUNTA     String    @db.VarChar(100)
+  NUM_ORDEM                  Int       @default(1)
+  USU_INCLUSAO               String    @db.VarChar(30)
+  DAT_INCLUSAO               DateTime
+
+  // Auto-relacionamentos
+  categoriaBase    CategoriaPergunta?  @relation("CategoriaVersoes", fields: [SEQ_CATEGORIA_BASE], references: [SEQ_CATEGORIA_PERGUNTA], onDelete: NoAction, onUpdate: NoAction)
+  versoes          CategoriaPergunta[] @relation("CategoriaVersoes")
+  categoriaPai     CategoriaPergunta?  @relation("CategoriaHierarquia", fields: [SEQ_CATEGORIA_PERGUNTA_PAI], references: [SEQ_CATEGORIA_PERGUNTA], onDelete: NoAction, onUpdate: NoAction)
+  subcategorias    CategoriaPergunta[] @relation("CategoriaHierarquia")
+
+  perguntas        Pergunta[]
+
+  @@index([SEQ_CATEGORIA_BASE])
+  @@index([DSC_STATUS])
+  @@map("categoria_pergunta")
+}
+
+// ============================================================================
+// QUESTIONÁRIO (com versionamento)
+// ============================================================================
+
+model Questionario {
+  SEQ_QUESTIONARIO                Int       @id @default(autoincrement())
+  SEQ_QUESTIONARIO_BASE           Int?
+  NUM_VERSAO                      Int       @default(1)
+  DSC_STATUS                      String    @default("RASCUNHO") @db.VarChar(20)
+  DAT_PUBLICACAO                  DateTime?
+  USU_PUBLICACAO                  String?   @db.VarChar(30)
+  SEQ_TIPO_PERIODICIDADE_PERGUNTA Int
+  SEQ_TIPO_ESCOPO_RESPOSTA        Int?
+  SEQ_ORGAO_ESCOPO                Int?      @db.UnsignedInt
+  NOM_QUESTIONARIO                String    @db.VarChar(150)
+  DSC_QUESTIONARIO                String    @db.Text
+  NUM_MES_LIMITE                  Int
+  NUM_DIA_LIMITE                  Int?
+  FLG_ATIVO                       String    @default("S") @db.VarChar(1) // DEPRECATED
+  USU_CRIACAO_QUESTIONARIO        String    @db.VarChar(30)
+  DAT_CRIACAO_QUESTIONARIO        DateTime
+  DAT_INATIVACAO_FORMULARIO       DateTime?
+  DAT_ATIVACAO_FORMULARIO         DateTime?
+  DSC_OBSERVACAO_QUESTIONARIO     String?   @db.Text
+
+  // Relacionamentos
+  questionarioBase     Questionario?          @relation("QuestionarioVersoes", fields: [SEQ_QUESTIONARIO_BASE], references: [SEQ_QUESTIONARIO], onDelete: NoAction, onUpdate: NoAction)
+  versoes              Questionario[]         @relation("QuestionarioVersoes")
+  periodicidade        TipoPeriodicidadePergunta @relation(fields: [SEQ_TIPO_PERIODICIDADE_PERGUNTA], references: [SEQ_TIPO_PERIODICIDADE_PERGUNTA])
+  tipoEscopo           TipoEscopoResposta?    @relation(fields: [SEQ_TIPO_ESCOPO_RESPOSTA], references: [SEQ_TIPO_ESCOPO_RESPOSTA])
+  
+  perguntas            Pergunta[]
+  respostas            Resposta[]
+  questionarioPergunta QuestionarioPergunta[] // Legado
+
+  @@index([SEQ_QUESTIONARIO_BASE])
+  @@index([DSC_STATUS])
+  @@index([SEQ_TIPO_ESCOPO_RESPOSTA])
+  @@map("questionario")
+}
+
+// ============================================================================
+// PERGUNTA (com versionamento + vínculo direto 1:N)
+// ============================================================================
+
+model Pergunta {
+  SEQ_PERGUNTA                    Int       @id @default(autoincrement())
+  SEQ_PERGUNTA_BASE               Int?
+  NUM_VERSAO                      Int       @default(1)
+  DSC_STATUS                      String    @default("RASCUNHO") @db.VarChar(20)
+  DAT_PUBLICACAO                  DateTime?
+  USU_PUBLICACAO                  String?   @db.VarChar(30)
+  SEQ_QUESTIONARIO                Int?      // Novo: vínculo direto 1:N
+  NUM_ORDEM                       Int       @default(0)
+  SEQ_TIPO_VARIAVEL_PERGUNTA      Int
+  SEQ_TIPO_PERIODICIDADE_PERGUNTA Int
+  SEQ_TIPO_FORMATO_RESPOSTA       Int
+  SEQ_CATEGORIA_PERGUNTA          Int?
+  DSC_PERGUNTA                    String    @db.Text
+  DSC_COMPLEMENTO_PERGUNTA        String?   @db.Text
+  FLG_ATIVA                       String    @default("S") @db.VarChar(1) // DEPRECATED
+  COD_PERGUNTA                    String?   @db.VarChar(30)
+  TXT_GLOSSARIO                   String?   @db.Text
+  FLG_RESPOSTA_AUTOMATICA         String?   @default("N") @db.VarChar(1)
+  TXT_JSON_ARRAY_RESPOSTAS        String?   @db.Text
+  USU_CRIACAO_PERGUNTA            String    @db.VarChar(30)
+  DAT_CRIACAO_PERGUNTA            DateTime
+
+  // Relacionamentos
+  perguntaBase         Pergunta?                 @relation("PerguntaVersoes", fields: [SEQ_PERGUNTA_BASE], references: [SEQ_PERGUNTA], onDelete: NoAction, onUpdate: NoAction)
+  versoes              Pergunta[]                @relation("PerguntaVersoes")
+  questionario         Questionario?             @relation(fields: [SEQ_QUESTIONARIO], references: [SEQ_QUESTIONARIO])
+  tipoVariavel         TipoVariavelPergunta      @relation(fields: [SEQ_TIPO_VARIAVEL_PERGUNTA], references: [SEQ_TIPO_VARIAVEL_PERGUNTA])
+  periodicidade        TipoPeriodicidadePergunta @relation(fields: [SEQ_TIPO_PERIODICIDADE_PERGUNTA], references: [SEQ_TIPO_PERIODICIDADE_PERGUNTA])
+  tipoFormato          TipoFormatoResposta       @relation(fields: [SEQ_TIPO_FORMATO_RESPOSTA], references: [SEQ_TIPO_FORMATO_RESPOSTA])
+  categoria            CategoriaPergunta?        @relation(fields: [SEQ_CATEGORIA_PERGUNTA], references: [SEQ_CATEGORIA_PERGUNTA])
+  
+  respostas            Resposta[]
+  questionarioPergunta QuestionarioPergunta[]    // Legado
+  filtros              PerguntaFiltro[]          // Filtros customizáveis
+
+  @@index([SEQ_PERGUNTA_BASE])
+  @@index([SEQ_QUESTIONARIO])
+  @@index([DSC_STATUS])
+  @@index([SEQ_QUESTIONARIO, NUM_ORDEM])
+  @@map("pergunta")
+}
+
+// ============================================================================
+// RESPOSTA
+// ============================================================================
+
+model Resposta {
+  SEQ_RESPOSTA               Int       @id @default(autoincrement())
+  SEQ_ORGAO                  Int       @db.UnsignedInt
+  SEQ_QUESTIONARIO           Int
+  SEQ_PERGUNTA               Int
+  NUM_MES_REFERENCIA_RESPOSTA Int
+  NUM_ANO_REFERENCIA_RESPOSTA Int
+  DSC_RESPOSTA_GENERICA      String?   @db.VarChar(50)
+  TXT_RESPOSTA_TEXTUAL       String?   @db.Text
+  USU_INCLUSAO_RESPOSTA      String    @db.VarChar(30)
+  DAT_INCLUSAO_RESPOSTA      DateTime
+
+  questionario Questionario @relation(fields: [SEQ_QUESTIONARIO], references: [SEQ_QUESTIONARIO])
+  pergunta     Pergunta     @relation(fields: [SEQ_PERGUNTA], references: [SEQ_PERGUNTA])
+
+  @@index([SEQ_ORGAO])
+  @@index([SEQ_QUESTIONARIO, SEQ_PERGUNTA])
+  @@map("resposta")
+}
+
+// ============================================================================
+// TABELAS DE COMPATIBILIDADE LEGADO
+// ============================================================================
+
+model QuestionarioPergunta {
+  SEQ_QUESTIONARIO Int
+  SEQ_PERGUNTA     Int
+  FLG_ATIVO        String @default("S") @db.Char(1)
+
+  questionario Questionario @relation(fields: [SEQ_QUESTIONARIO], references: [SEQ_QUESTIONARIO])
+  pergunta     Pergunta     @relation(fields: [SEQ_PERGUNTA], references: [SEQ_PERGUNTA])
+
+  @@id([SEQ_QUESTIONARIO, SEQ_PERGUNTA])
+  @@map("questionario_pergunta")
+}
+
+// ============================================================================
+// TABELAS DO SISTEMA ADMIN - FILTROS
+// ============================================================================
+
+model TipoFiltroPergunta {
+  SEQ_TIPO_FILTRO_PERGUNTA Int     @id @default(autoincrement())
+  COD_TIPO_FILTRO          String  @unique @db.VarChar(30)
+  DSC_TIPO_FILTRO          String  @db.VarChar(100)
+  DSC_CAMPO_CONTEXTO       String  @db.VarChar(50)
+  DSC_TIPO_DADO            String  @default("STRING") @db.VarChar(20)
+  TXT_VALORES_POSSIVEIS    String? @db.Text
+  FLG_ATIVO                String  @default("S") @db.VarChar(1)
+  NUM_ORDEM                Int     @default(0)
+  DAT_CRIACAO              DateTime @default(now())
+
+  filtros PerguntaFiltro[]
+
+  @@map("tipo_filtro_pergunta")
+}
+
+model TipoOperadorFiltro {
+  SEQ_TIPO_OPERADOR_FILTRO Int     @id @default(autoincrement())
+  COD_OPERADOR             String  @unique @db.VarChar(20)
+  DSC_OPERADOR             String  @db.VarChar(50)
+  DSC_SIMBOLO              String? @db.VarChar(10)
+  FLG_REQUER_LISTA         String  @default("N") @db.VarChar(1)
+
+  filtros PerguntaFiltro[]
+
+  @@map("tipo_operador_filtro")
+}
+
+model PerguntaFiltro {
+  SEQ_PERGUNTA_FILTRO      Int       @id @default(autoincrement())
+  SEQ_PERGUNTA             Int
+  SEQ_TIPO_FILTRO_PERGUNTA Int
+  SEQ_TIPO_OPERADOR_FILTRO Int
+  TXT_VALORES              String    @db.Text
+  NUM_GRUPO                Int       @default(1)
+  DSC_OBSERVACAO           String?   @db.VarChar(200)
+  FLG_ATIVO                String    @default("S") @db.VarChar(1)
+  USU_INCLUSAO             String    @db.VarChar(30)
+  DAT_INCLUSAO             DateTime  @default(now())
+
+  pergunta     Pergunta           @relation(fields: [SEQ_PERGUNTA], references: [SEQ_PERGUNTA], onDelete: Cascade)
+  tipoFiltro   TipoFiltroPergunta @relation(fields: [SEQ_TIPO_FILTRO_PERGUNTA], references: [SEQ_TIPO_FILTRO_PERGUNTA])
+  tipoOperador TipoOperadorFiltro @relation(fields: [SEQ_TIPO_OPERADOR_FILTRO], references: [SEQ_TIPO_OPERADOR_FILTRO])
+
+  @@index([SEQ_PERGUNTA])
+  @@index([SEQ_PERGUNTA, NUM_GRUPO])
+  @@map("pergunta_filtro")
+}
+
+model PerguntaFiltroGrupo {
+  SEQ_PERGUNTA       Int
+  NUM_GRUPO          Int
+  COD_LOGICA_PROXIMA String  @default("OR") @db.VarChar(3)
+  DSC_GRUPO          String? @db.VarChar(100)
+
+  @@id([SEQ_PERGUNTA, NUM_GRUPO])
+  @@map("pergunta_filtro_grupo")
+}
