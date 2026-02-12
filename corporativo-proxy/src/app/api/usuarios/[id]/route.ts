@@ -1,4 +1,4 @@
-// GET /api/usuarios/:id - Dados do usuario
+// GET /api/usuarios/:cpf - Dados do usuario pelo CPF
 
 import { NextRequest, NextResponse } from 'next/server';
 import { queryOne } from '@/lib/db';
@@ -19,15 +19,13 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const { id } = params;
+  const cpf = params.id.replace(/\D/g, '').trim(); // Remove pontos, tracos, etc.
 
   try {
-    const seqUsuario = parseInt(id);
-    
-    if (isNaN(seqUsuario)) {
-      logger.warn('ID de usuario invalido', { id });
+    if (!cpf || cpf.length < 11) {
+      logger.warn('CPF invalido', { cpf: cpf.substring(0, 3) + '***' });
       return NextResponse.json<ApiResponse<null>>(
-        { success: false, error: 'ID invalido' },
+        { success: false, error: 'CPF invalido' },
         { status: 400 }
       );
     }
@@ -38,13 +36,13 @@ export async function GET(
        FROM usuario u
        LEFT JOIN usuario_email ue ON u.SEQ_USUARIO = ue.SEQ_USUARIO
        LEFT JOIN tipo_cargo tc ON u.SIG_TIPO_CARGO = tc.SIG_TIPO_CARGO
-       WHERE u.SEQ_USUARIO = ?
+       WHERE u.NUM_CPF = ?
          AND u.FLG_ATIVO = 'S'`,
-      [seqUsuario]
+      [cpf]
     );
 
     if (!row) {
-      logger.info('Usuario nao encontrado ou inativo', { seqUsuario });
+      logger.info('Usuario nao encontrado ou inativo pelo CPF');
       return NextResponse.json<ApiResponse<null>>(
         { success: false, error: 'Usuario nao encontrado' },
         { status: 404 }
@@ -64,14 +62,14 @@ export async function GET(
 
     // Don't log CPF - sensitive data
     logger.info('Usuario encontrado', {
-      seqUsuario,
+      seqUsuario: usuario.seqUsuario,
       nome: usuario.nomUsuario,
       cargo: usuario.cargo?.sigla,
     });
 
     return NextResponse.json<ApiResponse<Usuario>>({ success: true, data: usuario });
   } catch (err) {
-    logger.error('Falha ao buscar usuario', { id, ...errorMeta(err) });
+    logger.error('Falha ao buscar usuario por CPF', errorMeta(err));
     return NextResponse.json<ApiResponse<null>>(
       { success: false, error: 'Erro interno' },
       { status: 500 }

@@ -51,7 +51,7 @@ export async function GET(
        LEFT JOIN sigla_orgao s ON t.SEQ_ORGAO = s.SEQ_ORGAO
        LEFT JOIN tipo_orgao to3 ON t.TIP_ORGAO = to3.TIP_ORGAO
        LEFT JOIN tribunal_uf tu ON t.SEQ_ORGAO = tu.SEQ_ORGAO
-       WHERE o.SEQ_ORGAO = ?
+       WHERE o.FLG_ATIVO = 'S' AND o.SEQ_ORGAO = ?
        GROUP BY o.SEQ_ORGAO, o.DSC_ORGAO, o.SEQ_ORGAO_PAI,
                 to2.TIP_ORGAO, to2.DSC_TIP_ORGAO,
                 t.SEQ_ORGAO, t.DSC_ORGAO, s.DSC_SIGLA, to3.TIP_ESFERA_JUSTICA`,

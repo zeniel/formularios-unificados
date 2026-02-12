@@ -26,9 +26,9 @@ export async function GET(request: NextRequest) {
              to2.TIP_ESFERA_JUSTICA,
              GROUP_CONCAT(DISTINCT tu.SIG_UF ORDER BY tu.SIG_UF) AS UFS
       FROM orgao o
+      INNER JOIN tribunal_uf tu ON o.SEQ_ORGAO = tu.SEQ_ORGAO
       LEFT JOIN sigla_orgao s ON o.SEQ_ORGAO = s.SEQ_ORGAO
       LEFT JOIN tipo_orgao to2 ON o.TIP_ORGAO = to2.TIP_ORGAO
-      LEFT JOIN tribunal_uf tu ON o.SEQ_ORGAO = tu.SEQ_ORGAO
       WHERE to2.TIP_ESFERA_JUSTICA IS NOT NULL
         AND o.FLG_ATIVO = 'S'
         AND o.SEQ_ORGAO = o.SEQ_TRIBUNAL_PAI
