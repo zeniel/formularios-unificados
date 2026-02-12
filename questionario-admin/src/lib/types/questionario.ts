@@ -85,6 +85,7 @@ export interface PerguntaResumo {
   COD_TIPO_FORMATO_RESPOSTA: CodigoFormatoResposta;
   DSC_TIPO_FORMATO_RESPOSTA: string;
   QTD_RESPOSTAS: number;
+  TXT_JSON_ARRAY_RESPOSTAS: string | null;
 }
 
 export interface PerguntaCompleta extends PerguntaResumo {

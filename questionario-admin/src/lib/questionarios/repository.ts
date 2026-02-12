@@ -253,6 +253,7 @@ export async function buscarQuestionario(id: number): Promise<QuestionarioComple
       COD_TIPO_FORMATO_RESPOSTA: p.tipoFormato.COD_TIPO_FORMATO_RESPOSTA as PerguntaResumo['COD_TIPO_FORMATO_RESPOSTA'],
       DSC_TIPO_FORMATO_RESPOSTA: p.tipoFormato.DSC_TIPO_FORMATO_RESPOSTA,
       QTD_RESPOSTAS: p._count.respostas,
+      TXT_JSON_ARRAY_RESPOSTAS: p.TXT_JSON_ARRAY_RESPOSTAS,
     });
   }
 
@@ -966,6 +967,7 @@ export async function buscarPerguntasTemplate(
     COD_TIPO_FORMATO_RESPOSTA: p.tipoFormato.COD_TIPO_FORMATO_RESPOSTA as PerguntaResumo['COD_TIPO_FORMATO_RESPOSTA'],
     DSC_TIPO_FORMATO_RESPOSTA: p.tipoFormato.DSC_TIPO_FORMATO_RESPOSTA,
     QTD_RESPOSTAS: p._count.respostas,
+    TXT_JSON_ARRAY_RESPOSTAS: p.TXT_JSON_ARRAY_RESPOSTAS,
   }));
 
   // Deduplicar: agrupar por raiz (SEQ_PERGUNTA_BASE ?? SEQ_PERGUNTA)

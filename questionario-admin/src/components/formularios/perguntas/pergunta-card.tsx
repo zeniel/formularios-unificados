@@ -3,6 +3,10 @@
 import { useState } from 'react';
 import { GripVertical, Pencil, Trash2, HelpCircle } from 'lucide-react';
 import type { PerguntaResumo } from '@/lib/types/questionario';
+import { parseOpcoes } from '@/lib/types/questionario';
+
+// Formatos que usam opções de resposta (Múltipla Escolha, Lista para escolha única)
+const FORMATOS_COM_OPCOES = [7, 11];
 
 interface PerguntaCardProps {
   pergunta: PerguntaResumo;
@@ -24,6 +28,10 @@ export function PerguntaCard({
   const [glossarioExpanded, setGlossarioExpanded] = useState(false);
   const p = pergunta;
   const hasGlossario = !!p.TXT_GLOSSARIO;
+  const opcoes = FORMATOS_COM_OPCOES.includes(p.COD_TIPO_FORMATO_RESPOSTA)
+    ? parseOpcoes(p.TXT_JSON_ARRAY_RESPOSTAS)
+    : [];
+  const MAX_OPCOES_PREVIEW = 3;
 
   return (
     <div className="hover:bg-gray-50 group">
@@ -64,6 +72,20 @@ export function PerguntaCard({
               </button>
             )}
           </div>
+          {opcoes.length > 0 && (
+            <ul className="mt-1.5 ml-3 space-y-0.5">
+              {opcoes.slice(0, MAX_OPCOES_PREVIEW).map((opcao, i) => (
+                <li key={i} className="text-xs text-gray-400 before:content-['–'] before:mr-1.5">
+                  {opcao}
+                </li>
+              ))}
+              {opcoes.length > MAX_OPCOES_PREVIEW && (
+                <li className="text-xs text-gray-400 italic">
+                  e mais {opcoes.length - MAX_OPCOES_PREVIEW} opção(ões)
+                </li>
+              )}
+            </ul>
+          )}
         </div>
 
         {/* Status badge */}
