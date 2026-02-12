@@ -6,15 +6,19 @@ import { Loader2, FileText, Plus, X } from 'lucide-react';
 import type {
   PerguntaCompleta,
   FormatoResposta,
-  CategoriaGrupo,
 } from '@/lib/types/questionario';
 import { PerguntaTemplateSearch } from './pergunta-template-search';
 import type { PerguntaResumo } from '@/lib/types/questionario';
 
+interface CategoriaLookup {
+  SEQ_CATEGORIA_PERGUNTA: number;
+  DSC_CATEGORIA_PERGUNTA: string;
+  NUM_ORDEM: number;
+}
+
 interface PerguntaFormModalProps {
   questionarioId: number;
   perguntaId?: number | null; // null = criar, number = editar
-  categorias: CategoriaGrupo[];
   open: boolean;
   onClose: () => void;
 }
@@ -45,7 +49,6 @@ const FORMATOS_COM_OPCOES = [7, 11];
 export function PerguntaFormModal({
   questionarioId,
   perguntaId,
-  categorias,
   open,
   onClose,
 }: PerguntaFormModalProps) {
@@ -53,6 +56,18 @@ export function PerguntaFormModal({
   const isEditing = !!perguntaId;
   const [form, setForm] = useState<FormData>(EMPTY_FORM);
   const [showTemplateSearch, setShowTemplateSearch] = useState(false);
+
+  // Buscar todas as categorias para o dropdown
+  const { data: categoriasData } = useQuery<{ success: boolean; data: CategoriaLookup[] }>({
+    queryKey: ['categorias-lookup'],
+    queryFn: async () => {
+      const res = await fetch('/api/categorias');
+      if (!res.ok) throw new Error('Erro ao carregar categorias');
+      return res.json();
+    },
+    enabled: open,
+  });
+  const categorias = categoriasData?.data ?? [];
 
   // Lookups
   const { data: lookups } = useQuery<{
@@ -256,23 +271,10 @@ export function PerguntaFormModal({
           {/* Campos do formulário */}
           {(!isEditing || !loadingPergunta) && (
             <>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Texto da pergunta *
-                </label>
-                <textarea
-                  value={form.DSC_PERGUNTA}
-                  onChange={(e) => updateField('DSC_PERGUNTA', e.target.value)}
-                  rows={3}
-                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                  placeholder="Digite o texto da pergunta..."
-                />
-              </div>
-
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Código
+                    Código da Pergunta
                   </label>
                   <input
                     type="text"
@@ -293,15 +295,26 @@ export function PerguntaFormModal({
                     className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                   >
                     <option value="">Sem categoria</option>
-                    {categorias
-                      .filter((c) => c.SEQ_CATEGORIA_PERGUNTA !== null)
-                      .map((c) => (
+                    {categorias.map((c) => (
                         <option key={c.SEQ_CATEGORIA_PERGUNTA} value={String(c.SEQ_CATEGORIA_PERGUNTA)}>
                           {c.DSC_CATEGORIA_PERGUNTA}
                         </option>
                       ))}
                   </select>
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Texto da pergunta *
+                </label>
+                <textarea
+                  value={form.DSC_PERGUNTA}
+                  onChange={(e) => updateField('DSC_PERGUNTA', e.target.value)}
+                  rows={3}
+                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  placeholder="Digite o texto da pergunta..."
+                />
               </div>
 
               <div>

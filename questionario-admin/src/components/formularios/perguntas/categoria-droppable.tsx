@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { FolderOpen, Pencil, Check, X, ArrowUpDown } from 'lucide-react';
+import { FolderOpen, Pencil, Check, X, ArrowUpDown, ChevronUp, ChevronDown } from 'lucide-react';
 import type { CategoriaGrupo } from '@/lib/types/questionario';
 import { SortablePergunta } from './sortable-pergunta';
 
@@ -15,6 +15,10 @@ interface CategoriaDroppableProps {
   onEditPergunta: (seqPergunta: number) => void;
   onDeletePergunta: (seqPergunta: number) => void;
   onSortCategoria?: (seqCategoria: number | null) => void;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
+  isFirst?: boolean;
+  isLast?: boolean;
 }
 
 export function CategoriaDroppable({
@@ -25,6 +29,10 @@ export function CategoriaDroppable({
   onEditPergunta,
   onDeletePergunta,
   onSortCategoria,
+  onMoveUp,
+  onMoveDown,
+  isFirst,
+  isLast,
 }: CategoriaDroppableProps) {
   const [editing, setEditing] = useState(false);
   const [nome, setNome] = useState(categoria.DSC_CATEGORIA_PERGUNTA);
@@ -116,6 +124,24 @@ export function CategoriaDroppable({
                   title="Ordenar por código/título"
                 >
                   <ArrowUpDown className="w-3.5 h-3.5" />
+                </button>
+              )}
+              {onMoveUp && !isFirst && (
+                <button
+                  onClick={onMoveUp}
+                  className="p-1 text-gray-300 hover:text-blue-500 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                  title="Mover para cima"
+                >
+                  <ChevronUp className="w-3.5 h-3.5" />
+                </button>
+              )}
+              {onMoveDown && !isLast && (
+                <button
+                  onClick={onMoveDown}
+                  className="p-1 text-gray-300 hover:text-blue-500 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                  title="Mover para baixo"
+                >
+                  <ChevronDown className="w-3.5 h-3.5" />
                 </button>
               )}
             </>

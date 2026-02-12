@@ -123,6 +123,61 @@ export function PerguntasSection({
     },
   });
 
+  // Reorder categories mutation
+  const reorderCategoriasMutation = useMutation({
+    mutationFn: async (ordens: { SEQ_CATEGORIA_PERGUNTA: number; NUM_ORDEM: number }[]) => {
+      const res = await fetch('/api/categorias/reordenar', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ordens }),
+      });
+      if (!res.ok) {
+        const json = await res.json();
+        throw new Error(json.error || 'Erro ao reordenar categorias');
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['questionario', questionarioId] });
+    },
+    onError: () => {
+      queryClient.invalidateQueries({ queryKey: ['questionario', questionarioId] });
+    },
+  });
+
+  function handleMoveCategoria(index: number, direction: 'up' | 'down') {
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= categorias.length) return;
+
+    // Só move categorias reais (com ID), "Sem categoria" não participa
+    const cat = categorias[index];
+    const target = categorias[targetIndex];
+    if (cat.SEQ_CATEGORIA_PERGUNTA === null || target.SEQ_CATEGORIA_PERGUNTA === null) return;
+
+    // Swap ordens
+    const newCategorias = [...categorias];
+    newCategorias[index] = target;
+    newCategorias[targetIndex] = cat;
+
+    // Optimistic update
+    queryClient.setQueryData(
+      ['questionario', questionarioId],
+      (old: { success: boolean; data: Record<string, unknown> } | undefined) => {
+        if (!old) return old;
+        return { ...old, data: { ...old.data, categorias: newCategorias } };
+      }
+    );
+
+    // Persistir: usar posição no array como NUM_ORDEM
+    const ordens = newCategorias
+      .filter(c => c.SEQ_CATEGORIA_PERGUNTA !== null)
+      .map((c, i) => ({
+        SEQ_CATEGORIA_PERGUNTA: c.SEQ_CATEGORIA_PERGUNTA!,
+        NUM_ORDEM: i + 1,
+      }));
+
+    reorderCategoriasMutation.mutate(ordens);
+  }
+
   function handleSortCategoria(seqCategoria: number | null) {
     const catIndex = categorias.findIndex((c) => c.SEQ_CATEGORIA_PERGUNTA === seqCategoria);
     if (catIndex < 0) return;
@@ -244,9 +299,10 @@ export function PerguntasSection({
             onDragEnd={handleDragEnd}
           >
             <div className="space-y-4">
-              {categorias.map((cat) => {
+              {categorias.map((cat, catIdx) => {
                 const startIdx = globalIndex + 1;
                 globalIndex += cat.perguntas.length;
+                const isRealCategory = cat.SEQ_CATEGORIA_PERGUNTA !== null;
                 return (
                   <CategoriaDroppable
                     key={cat.SEQ_CATEGORIA_PERGUNTA ?? 'sem-categoria'}
@@ -257,6 +313,10 @@ export function PerguntasSection({
                     onEditPergunta={handleEditPergunta}
                     onDeletePergunta={handleDeletePergunta}
                     onSortCategoria={handleSortCategoria}
+                    onMoveUp={isRealCategory ? () => handleMoveCategoria(catIdx, 'up') : undefined}
+                    onMoveDown={isRealCategory ? () => handleMoveCategoria(catIdx, 'down') : undefined}
+                    isFirst={catIdx === 0}
+                    isLast={catIdx === categorias.length - 1}
                   />
                 );
               })}
@@ -285,7 +345,7 @@ export function PerguntasSection({
       </div>
 
       {/* Error toasts */}
-      {(renameCategoriaMutation.error || reorderError || sortMutation.error) && (
+      {(renameCategoriaMutation.error || reorderError || sortMutation.error || reorderCategoriasMutation.error) && (
         <div className="fixed bottom-4 right-4 bg-red-100 border border-red-300 text-red-800 px-4 py-3 rounded-lg shadow-lg z-50">
           {renameCategoriaMutation.error instanceof Error
             ? renameCategoriaMutation.error.message
@@ -293,6 +353,8 @@ export function PerguntasSection({
             ? reorderError.message
             : sortMutation.error instanceof Error
             ? sortMutation.error.message
+            : reorderCategoriasMutation.error instanceof Error
+            ? reorderCategoriasMutation.error.message
             : 'Erro'}
         </div>
       )}
@@ -301,7 +363,6 @@ export function PerguntasSection({
       <PerguntaFormModal
         questionarioId={questionarioId}
         perguntaId={editingPerguntaId}
-        categorias={categorias}
         open={perguntaModalOpen}
         onClose={() => {
           setPerguntaModalOpen(false);

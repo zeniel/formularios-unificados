@@ -55,6 +55,17 @@ export interface Escopo {
 }
 
 // ============================================================================
+// Natural sort para códigos de pergunta (ex: P2 antes de P10)
+// ============================================================================
+
+function naturalCompare(a: string | null, b: string | null): number {
+  if (a === b) return 0;
+  if (a === null) return 1;
+  if (b === null) return -1;
+  return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+}
+
+// ============================================================================
 // Helper: buscar perguntas de um questionário via questionario_pergunta
 // ============================================================================
 
@@ -73,7 +84,7 @@ async function buscarPerguntasDoQuestionario(seqQuestionario: number) {
 
   return prisma.pergunta.findMany({
     where: { SEQ_PERGUNTA: { in: seqPerguntas } },
-    orderBy: { NUM_ORDEM: 'asc' },
+    orderBy: [{ NUM_ORDEM: 'asc' }, { COD_PERGUNTA: 'asc' }],
     include: {
       tipoFormato: true,
       categoria: true,
@@ -257,29 +268,16 @@ export async function buscarQuestionario(id: number): Promise<QuestionarioComple
     });
   }
 
-  // Incluir categorias RASCUNHO vazias (sem perguntas neste questionário)
-  const todasCategorias = await prisma.categoriaPergunta.findMany({
-    where: { DSC_STATUS: 'RASCUNHO' },
-    select: {
-      SEQ_CATEGORIA_PERGUNTA: true,
-      DSC_CATEGORIA_PERGUNTA: true,
-      NUM_ORDEM: true,
-    },
-  });
-  for (const cat of todasCategorias) {
-    if (!categoriasMap.has(cat.SEQ_CATEGORIA_PERGUNTA)) {
-      categoriasMap.set(cat.SEQ_CATEGORIA_PERGUNTA, {
-        SEQ_CATEGORIA_PERGUNTA: cat.SEQ_CATEGORIA_PERGUNTA,
-        DSC_CATEGORIA_PERGUNTA: cat.DSC_CATEGORIA_PERGUNTA,
-        NUM_ORDEM: cat.NUM_ORDEM,
-        perguntas: [],
-      });
-    }
+  // Ordenar perguntas dentro de cada categoria: NUM_ORDEM, depois código natural
+  for (const grupo of categoriasMap.values()) {
+    grupo.perguntas.sort((a, b) =>
+      a.NUM_ORDEM - b.NUM_ORDEM || naturalCompare(a.COD_PERGUNTA, b.COD_PERGUNTA)
+    );
   }
 
-  // Ordenar categorias por NUM_ORDEM, perguntas dentro de cada categoria já vêm ordenadas
+  // Ordenar categorias por NUM_ORDEM, depois por descrição
   const categorias: CategoriaGrupo[] = Array.from(categoriasMap.values())
-    .sort((a, b) => a.NUM_ORDEM - b.NUM_ORDEM);
+    .sort((a, b) => a.NUM_ORDEM - b.NUM_ORDEM || a.DSC_CATEGORIA_PERGUNTA.localeCompare(b.DSC_CATEGORIA_PERGUNTA));
 
   // Contar categorias reais (excluindo "Sem categoria")
   const qtdCategorias = categorias.filter(c => c.SEQ_CATEGORIA_PERGUNTA !== null).length;
@@ -675,6 +673,41 @@ export async function editarCategoria(
   await prisma.categoriaPergunta.update({
     where: { SEQ_CATEGORIA_PERGUNTA: id },
     data: { DSC_CATEGORIA_PERGUNTA: dscCategoria.trim() },
+  });
+}
+
+// ============================================================================
+// Reordenar Categorias
+// ============================================================================
+
+export async function reordenarCategorias(
+  ordens: { SEQ_CATEGORIA_PERGUNTA: number; NUM_ORDEM: number }[]
+): Promise<void> {
+  await prisma.$transaction(
+    ordens.map((item) =>
+      prisma.categoriaPergunta.update({
+        where: { SEQ_CATEGORIA_PERGUNTA: item.SEQ_CATEGORIA_PERGUNTA },
+        data: { NUM_ORDEM: item.NUM_ORDEM },
+      })
+    )
+  );
+}
+
+// ============================================================================
+// Listar Categorias (todas, para dropdown)
+// ============================================================================
+
+export async function listarCategorias(): Promise<{ SEQ_CATEGORIA_PERGUNTA: number; DSC_CATEGORIA_PERGUNTA: string; NUM_ORDEM: number }[]> {
+  return prisma.categoriaPergunta.findMany({
+    select: {
+      SEQ_CATEGORIA_PERGUNTA: true,
+      DSC_CATEGORIA_PERGUNTA: true,
+      NUM_ORDEM: true,
+    },
+    orderBy: [
+      // { NUM_ORDEM: 'asc' },                                                                             
+      { DSC_CATEGORIA_PERGUNTA: 'asc' },
+    ],
   });
 }
 

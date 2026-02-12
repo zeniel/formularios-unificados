@@ -1,9 +1,24 @@
 // src/app/api/categorias/route.ts
-// POST - Criar nova categoria
+// GET - Listar categorias | POST - Criar nova categoria
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession, hasAnyPerfil } from '@/lib/auth/session';
-import { criarCategoria } from '@/lib/questionarios/repository';
+import { criarCategoria, listarCategorias } from '@/lib/questionarios/repository';
+
+export async function GET() {
+  const session = await getSession();
+  if (!session) {
+    return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
+  }
+
+  try {
+    const categorias = await listarCategorias();
+    return NextResponse.json({ success: true, data: categorias });
+  } catch (error) {
+    console.error('[api/categorias] Erro ao listar:', error);
+    return NextResponse.json({ error: 'Erro ao listar categorias' }, { status: 500 });
+  }
+}
 
 export async function POST(request: NextRequest) {
   const session = await getSession();
