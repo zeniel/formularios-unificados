@@ -47,10 +47,10 @@ ALTER TABLE questionario
 -- Índices
 CREATE INDEX idx_questionario_base ON questionario(SEQ_QUESTIONARIO_BASE);
 CREATE INDEX idx_questionario_status ON questionario(DSC_STATUS);
-CREATE INDEX idx_questionario_raiz_versao ON questionario(
-    (COALESCE(SEQ_QUESTIONARIO_BASE, SEQ_QUESTIONARIO)), 
-    NUM_VERSAO
-);
+-- Índice para buscar versões de um questionário
+-- (Functional index com COALESCE não é permitido em colunas auto_increment)
+-- A aplicação usa: WHERE SEQ_QUESTIONARIO_BASE = ? OR (SEQ_QUESTIONARIO_BASE IS NULL AND SEQ_QUESTIONARIO = ?)
+CREATE INDEX idx_questionario_raiz_versao ON questionario(SEQ_QUESTIONARIO_BASE, NUM_VERSAO);
 
 
 -- ============================================================================
@@ -230,8 +230,7 @@ SELECT
     c.DSC_CATEGORIA_PERGUNTA,
     c.NUM_ORDEM,
     c.NUM_VERSAO,
-    c.SEQ_CATEGORIA_BASE,
-    COALESCE(c.SEQ_CATEGORIA_BASE, c.SEQ_CATEGORIA_PERGUNTA) AS SEQ_CATEGORIA_RAIZ,
+    COALESCE(c.SEQ_CATEGORIA_BASE, c.SEQ_CATEGORIA_PERGUNTA) AS c.SEQ_CATEGORIA_BASE,
     c.DSC_STATUS,
     c.DAT_PUBLICACAO,
     c.USU_PUBLICACAO,

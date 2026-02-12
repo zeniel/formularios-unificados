@@ -16,7 +16,11 @@
     "build": "npm run build:admin && npm run build:proxy",
     "lint": "npm run lint --workspaces --if-present",
     "db:generate": "npm run db:generate -w questionario-admin",
-    "db:studio": "npm run db:studio -w questionario-admin"
+    "db:studio": "npm run db:studio -w questionario-admin",
+    "docker:up": "docker compose -f docker/mysql-local/docker-compose.yml up -d",
+    "docker:down": "docker compose -f docker/mysql-local/docker-compose.yml down",
+    "docker:reset": "docker compose -f docker/mysql-local/docker-compose.yml down -v && docker compose -f docker/mysql-local/docker-compose.yml up -d",
+    "docker:logs": "docker compose -f docker/mysql-local/docker-compose.yml logs -f mysql"
   },
   "devDependencies": {
     "typescript": "^5.4.0"

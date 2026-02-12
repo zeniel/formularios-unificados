@@ -44,6 +44,11 @@ next-env.d.ts
 # prisma
 questionario-admin/prisma/*.db
 
+# docker - dumps SQL (podem ser grandes)
+docker/mysql-local/initdb/*.sql
+docker/mysql-local/initdb/*.gz
+!docker/mysql-local/initdb/.gitkeep
+
 # ide
 .idea/
 .vscode/
