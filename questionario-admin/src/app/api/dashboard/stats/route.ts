@@ -13,9 +13,11 @@ export async function GET() {
 
   try {
     // Executar contagens em paralelo para performance
+    // Formulários e perguntas: contar apenas versões raiz (NUM_VERSAO = 1)
+    // Respostas: contar todas (de todas as versões)
     const [formularios, perguntas, respostas] = await Promise.all([
-      prisma.questionario.count(),
-      prisma.pergunta.count(),
+      prisma.questionario.count({ where: { NUM_VERSAO: 1 } }),
+      prisma.pergunta.count({ where: { NUM_VERSAO: 1 } }),
       prisma.resposta.count(),
     ]);
 

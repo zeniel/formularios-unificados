@@ -155,6 +155,9 @@ export async function listarQuestionarios(
 
     if (!representante) continue;
 
+    // Respostas: somar de TODAS as versões da árvore
+    const totalRespostas = grupo.reduce((sum, q) => sum + q._count.respostas, 0);
+
     representantes.push({
       SEQ_QUESTIONARIO: representante.SEQ_QUESTIONARIO,
       NOM_QUESTIONARIO: representante.NOM_QUESTIONARIO,
@@ -164,7 +167,7 @@ export async function listarQuestionarios(
       DAT_CRIACAO_QUESTIONARIO: representante.DAT_CRIACAO_QUESTIONARIO,
       DAT_PUBLICACAO: representante.DAT_PUBLICACAO,
       QTD_PERGUNTAS: representante.questionarioPergunta.length,
-      QTD_RESPOSTAS: representante._count.respostas,
+      QTD_RESPOSTAS: totalRespostas,
       COD_ESCOPO_RESPOSTA: representante.tipoEscopo?.COD_TIPO_ESCOPO as QuestionarioResumo['COD_ESCOPO_RESPOSTA'] ?? 'TRIBUNAL',
       TEM_RASCUNHO: temRascunho,
       SEQ_TIPO_PERIODICIDADE_PERGUNTA: representante.SEQ_TIPO_PERIODICIDADE_PERGUNTA,
@@ -238,8 +241,39 @@ export async function buscarQuestionario(id: number): Promise<QuestionarioComple
     perguntas: PerguntaResumo[];
   }>();
 
+  // Para cada pergunta, contar respostas de TODAS as versões da árvore
+  // Agrupar por raiz: SEQ_PERGUNTA_BASE ?? SEQ_PERGUNTA
+  const perguntaRaizes = perguntasDb.map(p => p.SEQ_PERGUNTA_BASE ?? p.SEQ_PERGUNTA);
+  const respostasPorPerguntaRaiz = new Map<number, number>();
+
+  if (perguntaRaizes.length > 0) {
+    // Buscar todas as perguntas de cada árvore
+    const todasVersoesPergunta = await prisma.pergunta.findMany({
+      where: {
+        OR: [
+          { SEQ_PERGUNTA: { in: perguntaRaizes } },
+          { SEQ_PERGUNTA_BASE: { in: perguntaRaizes } },
+        ],
+      },
+      select: {
+        SEQ_PERGUNTA: true,
+        SEQ_PERGUNTA_BASE: true,
+        _count: { select: { respostas: true } },
+      },
+    });
+
+    for (const pv of todasVersoesPergunta) {
+      const raizP = pv.SEQ_PERGUNTA_BASE ?? pv.SEQ_PERGUNTA;
+      respostasPorPerguntaRaiz.set(
+        raizP,
+        (respostasPorPerguntaRaiz.get(raizP) ?? 0) + pv._count.respostas
+      );
+    }
+  }
+
   for (const p of perguntasDb) {
     const catKey = p.SEQ_CATEGORIA_PERGUNTA;
+    const raizP = p.SEQ_PERGUNTA_BASE ?? p.SEQ_PERGUNTA;
 
     if (!categoriasMap.has(catKey)) {
       categoriasMap.set(catKey, {
@@ -263,7 +297,7 @@ export async function buscarQuestionario(id: number): Promise<QuestionarioComple
       DSC_CATEGORIA_PERGUNTA: p.categoria?.DSC_CATEGORIA_PERGUNTA ?? null,
       COD_TIPO_FORMATO_RESPOSTA: p.tipoFormato.COD_TIPO_FORMATO_RESPOSTA as PerguntaResumo['COD_TIPO_FORMATO_RESPOSTA'],
       DSC_TIPO_FORMATO_RESPOSTA: p.tipoFormato.DSC_TIPO_FORMATO_RESPOSTA,
-      QTD_RESPOSTAS: p._count.respostas,
+      QTD_RESPOSTAS: respostasPorPerguntaRaiz.get(raizP) ?? p._count.respostas,
       TXT_JSON_ARRAY_RESPOSTAS: p.TXT_JSON_ARRAY_RESPOSTAS,
     });
   }
@@ -308,6 +342,14 @@ export async function buscarQuestionario(id: number): Promise<QuestionarioComple
     DAT_PUBLICACAO: v.DAT_PUBLICACAO,
   }));
 
+  // Contar respostas de TODAS as versões da árvore
+  const idsArvore = [raiz, ...versoesDb.map(v => v.SEQ_QUESTIONARIO)];
+  // Incluir o próprio questionário se não está na lista de publicados
+  if (!idsArvore.includes(q.SEQ_QUESTIONARIO)) idsArvore.push(q.SEQ_QUESTIONARIO);
+  const totalRespostasArvore = await prisma.resposta.count({
+    where: { SEQ_QUESTIONARIO: { in: idsArvore } },
+  });
+
   // Verificar se existe RASCUNHO na mesma raiz
   const rascunhoExistente = await prisma.questionario.findFirst({
     where: {
@@ -339,7 +381,7 @@ export async function buscarQuestionario(id: number): Promise<QuestionarioComple
     DSC_TIPO_ESCOPO: q.tipoEscopo?.DSC_TIPO_ESCOPO ?? null,
     DSC_DETALHES: q.tipoEscopo?.DSC_DETALHES ?? null,
     QTD_PERGUNTAS: qtdPerguntas,
-    QTD_RESPOSTAS: q._count.respostas,
+    QTD_RESPOSTAS: totalRespostasArvore,
     QTD_CATEGORIAS: qtdCategorias,
     categorias,
     versoes,
