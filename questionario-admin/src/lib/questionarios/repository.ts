@@ -189,12 +189,36 @@ export async function listarQuestionarios(
       )
     : representantes;
 
-  // Filtrar por busca (nome)
-  const filtrados = busca
-    ? filtradosPorTipo.filter(q =>
-        q.NOM_QUESTIONARIO.toLowerCase().includes(busca.toLowerCase())
-      )
-    : filtradosPorTipo;
+  // Filtrar por busca (nome do formulário OU descrição de pergunta vinculada)
+  let filtrados = filtradosPorTipo;
+  if (busca) {
+    const termo = busca.toLowerCase();
+
+    // Buscar perguntas que contenham o termo na descrição
+    const perguntasMatch = await prisma.pergunta.findMany({
+      where: { DSC_PERGUNTA: { contains: busca } },
+      select: { SEQ_PERGUNTA: true },
+    });
+    const seqPerguntasMatch = new Set(perguntasMatch.map(p => p.SEQ_PERGUNTA));
+
+    // IDs de questionários que têm perguntas correspondentes
+    const questionariosComPerguntaMatch = new Set<number>();
+    for (const q of todos) {
+      const raiz = q.SEQ_QUESTIONARIO_BASE ?? q.SEQ_QUESTIONARIO;
+      for (const vp of q.questionarioPergunta) {
+        if (seqPerguntasMatch.has(vp.SEQ_PERGUNTA)) {
+          questionariosComPerguntaMatch.add(raiz);
+          break;
+        }
+      }
+    }
+
+    filtrados = filtradosPorTipo.filter(q => {
+      const raiz = q.SEQ_QUESTIONARIO_BASE ?? q.SEQ_QUESTIONARIO;
+      return q.NOM_QUESTIONARIO.toLowerCase().includes(termo)
+        || questionariosComPerguntaMatch.has(raiz);
+    });
+  }
 
   // Paginar em memória
   const total = filtrados.length;
