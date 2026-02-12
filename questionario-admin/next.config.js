@@ -20,9 +20,10 @@ const nextConfig = {
   },
 
   // Variáveis de ambiente públicas (expostas ao browser)
+  // NÃO definir aqui valores que devem ser configuráveis por ambiente.
+  // Use .env.development / .env.production para isso.
   env: {
-    NEXT_PUBLIC_APP_NAME: 'Administração de Questionários',
-    NEXT_PUBLIC_CNJ_CORPORATIVO_URL: 'https://www.cnj.jus.br/corporativo',
+    NEXT_PUBLIC_APP_NAME: 'Formulários Unificados CNJ',
   },
 };
 

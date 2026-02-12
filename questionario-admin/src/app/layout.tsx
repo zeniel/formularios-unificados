@@ -7,8 +7,8 @@ import { Providers } from './providers';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Administração de Questionários',
-  description: 'Sistema de administração de questionários e formulários',
+  title: 'Formulários Unificados CNJ',
+  description: 'Sistema de Formulários Unificados CNJ e formulários',
 };
 
 export default function RootLayout({

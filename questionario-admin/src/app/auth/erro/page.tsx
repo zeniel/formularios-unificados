@@ -7,7 +7,7 @@ interface ErrorPageProps {
 
 export default function AuthErrorPage({ searchParams }: ErrorPageProps) {
   const message = searchParams.msg || 'Erro de autenticação';
-  const corporativoUrl = process.env.NEXT_PUBLIC_CNJ_CORPORATIVO_URL || 'https://www.cnj.jus.br/corporativo';
+  const corporativoUrl = process.env.NEXT_PUBLIC_CNJ_CORPORATIVO_URL;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
@@ -26,12 +26,14 @@ export default function AuthErrorPage({ searchParams }: ErrorPageProps) {
           </p>
 
           <div className="space-y-3">
-            <a
-              href={corporativoUrl}
-              className="block w-full px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              Ir para o Portal Corporativo
-            </a>
+            {corporativoUrl && (
+              <a
+                href={corporativoUrl}
+                className="block w-full px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Ir para o Portal Corporativo
+              </a>
+            )}
 
             <a
               href="/"

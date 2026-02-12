@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "qadmin-001",
     "name": "Questionário Admin API",
-    "description": "API do sistema de administração de questionários do CNJ.\n\nEste serviço roda na porta 3000 e expõe endpoints para autenticação via credencial corporativa e consulta de dados do corporativo.\n\n## Autenticação\n\nA maioria dos endpoints requer sessão ativa. O fluxo é:\n1. Portal corporativo redireciona para `/auth/callback?c=CREDENCIAL` (GET ou POST)\n2. Sistema valida credencial e cria cookie `qadmin_session`\n3. Requests subsequentes enviam o cookie automaticamente\n\nO cookie `qadmin_session` tem TTL de 8 horas.\n\n## Perfis\n\n| Perfil | Permissões |\n|--------|------------|\n| ADMINISTRADOR | Acesso total |\n| PESQUISADOR | Criar/editar questionários |\n| VISUALIZADOR | Apenas leitura |\n| PESQUISADO | Responder formulários |",
+    "description": "API do sistema de Formulários Unificados CNJ do CNJ.\n\nEste serviço roda na porta 3000 e expõe endpoints para autenticação via credencial corporativa e consulta de dados do corporativo.\n\n## Autenticação\n\nA maioria dos endpoints requer sessão ativa. O fluxo é:\n1. Portal corporativo redireciona para `/auth/callback?c=CREDENCIAL` (GET ou POST)\n2. Sistema valida credencial e cria cookie `qadmin_session`\n3. Requests subsequentes enviam o cookie automaticamente\n\nO cookie `qadmin_session` tem TTL de 8 horas.\n\n## Perfis\n\n| Perfil | Permissões |\n|--------|------------|\n| ADMINISTRADOR | Acesso total |\n| PESQUISADOR | Criar/editar questionários |\n| VISUALIZADOR | Apenas leitura |\n| PESQUISADO | Responder formulários |",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [

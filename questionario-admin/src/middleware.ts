@@ -4,7 +4,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-const CORPORATIVO_URL = process.env.NEXT_PUBLIC_CNJ_CORPORATIVO_URL || 'https://www.cnj.jus.br/corporativo';
 const SESSION_COOKIE_NAME = 'qadmin_session';
 
 // Rotas públicas (não requerem autenticação)
@@ -22,6 +21,22 @@ const PUBLIC_PREFIXES = [
   '/static',
 ];
 
+function redirectToCorporativo(request: NextRequest, motivo: string) {
+  const corporativoUrl = process.env.NEXT_PUBLIC_CNJ_CORPORATIVO_URL;
+  const { pathname } = request.nextUrl;
+
+  if (!corporativoUrl) {
+    console.error(`[middleware] NEXT_PUBLIC_CNJ_CORPORATIVO_URL não definida! Não é possível redirecionar. Motivo: ${motivo}`);
+    return NextResponse.json(
+      { error: 'Configuração do sistema incompleta: NEXT_PUBLIC_CNJ_CORPORATIVO_URL não definida.' },
+      { status: 500 }
+    );
+  }
+
+  console.log(`[middleware] ${request.method} ${pathname} → ${motivo}, redirecionando para: ${corporativoUrl}`);
+  return NextResponse.redirect(corporativoUrl);
+}
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -37,8 +52,7 @@ export function middleware(request: NextRequest) {
   const sessionCookie = request.cookies.get(SESSION_COOKIE_NAME)?.value;
 
   if (!sessionCookie) {
-    console.log(`[middleware] ${request.method} ${pathname} → sem cookie de sessão, redirecionando para: ${CORPORATIVO_URL}`);
-    return NextResponse.redirect(CORPORATIVO_URL);
+    return redirectToCorporativo(request, 'sem cookie de sessão');
   }
 
   try {
@@ -46,23 +60,20 @@ export function middleware(request: NextRequest) {
 
     // Verificar se tem dados mínimos
     if (!session.usuario || !session.token) {
-      console.log(`[middleware] ${request.method} ${pathname} → sessão inválida (sem usuario/token), redirecionando`);
-      return NextResponse.redirect(CORPORATIVO_URL);
+      return redirectToCorporativo(request, 'sessão inválida (sem usuario/token)');
     }
 
     // Verificar expiração
     if (Date.now() > session.expiresAt) {
-      console.log(`[middleware] ${request.method} ${pathname} → sessão expirada, redirecionando`);
-      const response = NextResponse.redirect(CORPORATIVO_URL);
+      const response = redirectToCorporativo(request, 'sessão expirada');
       response.cookies.delete(SESSION_COOKIE_NAME);
       return response;
     }
 
     // Sessão válida - continuar
     return NextResponse.next();
-  } catch (err) {
-    console.log(`[middleware] ${request.method} ${pathname} → cookie inválido (parse error), redirecionando`);
-    const response = NextResponse.redirect(CORPORATIVO_URL);
+  } catch {
+    const response = redirectToCorporativo(request, 'cookie inválido (parse error)');
     response.cookies.delete(SESSION_COOKIE_NAME);
     return response;
   }
@@ -70,13 +81,6 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except:
-     * - api/health (health check)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     */
     '/((?!api/health|_next/static|_next/image|favicon.ico).*)',
   ],
 };

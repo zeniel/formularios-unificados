@@ -14,7 +14,7 @@ export function Header({ usuario }: HeaderProps) {
       {/* Título da página */}
       <div>
         <h1 className="text-xl font-semibold text-gray-900">
-          Administração de Questionários
+          Formulários Unificados CNJ
         </h1>
       </div>
 
