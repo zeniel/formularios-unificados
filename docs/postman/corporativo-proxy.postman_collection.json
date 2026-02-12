@@ -27,7 +27,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["api", "tribunais"]
             },
-            "description": "Lista todos os tribunais cadastrados no sistema corporativo.\n\nRetorna tribunais ordenados por esfera, UF e sigla."
+            "description": "Lista todos os tribunais cadastrados no sistema corporativo.\n\nRetorna tribunais ativos (FLG_ATIVO='S') onde SEQ_TRIBUNAL_PAI = SEQ_ORGAO.\nInclui sigla, esfera e UFs."
           },
           "response": [
             {
@@ -35,7 +35,7 @@
               "status": "OK",
               "code": 200,
               "header": [{ "key": "Content-Type", "value": "application/json" }],
-              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"seqOrgao\": 1,\n      \"nome\": \"Tribunal de Justiça do Estado de São Paulo\",\n      \"sigla\": \"TJSP\",\n      \"esfera\": \"ESTADUAL\",\n      \"uf\": \"SP\"\n    },\n    {\n      \"seqOrgao\": 2,\n      \"nome\": \"Tribunal Regional Federal da 3ª Região\",\n      \"sigla\": \"TRF3\",\n      \"esfera\": \"FEDERAL\",\n      \"uf\": \"SP\"\n    }\n  ]\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"seqOrgao\": 8,\n      \"nome\": \"Tribunal de Justiça do Estado do Acre\",\n      \"sigla\": \"TJAC\",\n      \"esfera\": \"ESTADUAL\",\n      \"ufs\": [\"AC\"]\n    },\n    {\n      \"seqOrgao\": 3,\n      \"nome\": \"Tribunal Regional Federal da 1ª Região\",\n      \"sigla\": \"TRF1\",\n      \"esfera\": \"FEDERAL\",\n      \"ufs\": [\"AC\", \"AM\", \"AP\", \"BA\", \"DF\", \"GO\", \"MA\", \"MG\", \"MT\", \"PA\", \"PI\", \"RO\", \"RR\", \"TO\"]\n    }\n  ]\n}"
             }
           ]
         },
@@ -52,7 +52,7 @@
                 {
                   "key": "esfera",
                   "value": "ESTADUAL",
-                  "description": "Filtra por esfera da justiça. Valores: ESTADUAL, FEDERAL, TRABALHO, ELEITORAL, MILITAR, SUPERIOR"
+                  "description": "Filtra por esfera da justiça. Aceita código (E, F, T, L, M, S) ou descrição (ESTADUAL, FEDERAL, TRABALHO, ELEITORAL, MILITAR, SUPERIOR)"
                 }
               ]
             },
@@ -82,49 +82,23 @@
           "response": []
         },
         {
-          "name": "Listar tribunais (filtro combinado)",
+          "name": "Buscar tribunal por sigla",
           "request": {
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/tribunais?esfera=ESTADUAL&uf=SP",
+              "raw": "{{baseUrl}}/api/tribunais/:sigla",
               "host": ["{{baseUrl}}"],
-              "path": ["api", "tribunais"],
-              "query": [
-                {
-                  "key": "esfera",
-                  "value": "ESTADUAL",
-                  "description": "Esfera da justiça"
-                },
-                {
-                  "key": "uf",
-                  "value": "SP",
-                  "description": "Unidade federativa"
-                }
-              ]
-            },
-            "description": "Lista tribunais filtrando por esfera E UF ao mesmo tempo."
-          },
-          "response": []
-        },
-        {
-          "name": "Buscar tribunal por ID",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/tribunais/:id",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "tribunais", ":id"],
+              "path": ["api", "tribunais", ":sigla"],
               "variable": [
                 {
-                  "key": "id",
-                  "value": "1",
-                  "description": "SEQ_ORGAO do tribunal"
+                  "key": "sigla",
+                  "value": "TJSP",
+                  "description": "Sigla do tribunal (ex: TJSP, TRF3, CNJ, CJF)"
                 }
               ]
             },
-            "description": "Busca um tribunal específico pelo seu ID (SEQ_ORGAO)."
+            "description": "Busca um tribunal específico pela sigla (join com sigla_orgao).\n\nFiltra apenas tribunais reais (SEQ_TRIBUNAL_PAI = SEQ_ORGAO)."
           },
           "response": [
             {
@@ -132,21 +106,21 @@
               "status": "OK",
               "code": 200,
               "header": [{ "key": "Content-Type", "value": "application/json" }],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"seqOrgao\": 1,\n    \"nome\": \"Tribunal de Justiça do Estado de São Paulo\",\n    \"sigla\": \"TJSP\",\n    \"esfera\": \"ESTADUAL\",\n    \"uf\": \"SP\",\n    \"porte\": \"GRANDE\"\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"seqOrgao\": 8,\n    \"nome\": \"Tribunal de Justiça do Estado do Acre\",\n    \"sigla\": \"TJAC\",\n    \"esfera\": \"ESTADUAL\",\n    \"ufs\": [\"AC\"]\n  }\n}"
             },
             {
-              "name": "400 - ID inválido",
+              "name": "400 - Sigla inválida",
               "status": "Bad Request",
               "code": 400,
               "header": [{ "key": "Content-Type", "value": "application/json" }],
-              "body": "{\n  \"success\": false,\n  \"error\": \"ID inválido\"\n}"
+              "body": "{\n  \"success\": false,\n  \"error\": \"Sigla invalida\"\n}"
             },
             {
               "name": "404 - Não encontrado",
               "status": "Not Found",
               "code": 404,
               "header": [{ "key": "Content-Type", "value": "application/json" }],
-              "body": "{\n  \"success\": false,\n  \"error\": \"Tribunal não encontrado\"\n}"
+              "body": "{\n  \"success\": false,\n  \"error\": \"Tribunal nao encontrado\"\n}"
             }
           ]
         }
@@ -173,15 +147,15 @@
                 }
               ]
             },
-            "description": "Busca um órgão específico pelo seu ID (SEQ_ORGAO)."
+            "description": "Busca um órgão pelo seu ID (SEQ_ORGAO).\n\nRetorna dados do órgão com tipoOrgao (join tipo_orgao) e dados do tribunal pai (join via SEQ_TRIBUNAL_PAI com sigla_orgao, tipo_orgao, tribunal_uf)."
           },
           "response": [
             {
-              "name": "200 - Órgão encontrado",
+              "name": "200 - Órgão encontrado (com tribunal)",
               "status": "OK",
               "code": 200,
               "header": [{ "key": "Content-Type", "value": "application/json" }],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"seqOrgao\": 456,\n    \"dscOrgao\": \"1ª Vara Criminal de São Paulo\",\n    \"seqOrgaoPai\": 1,\n    \"tipo\": \"VARA\"\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"seqOrgao\": 456,\n    \"dscOrgao\": \"1ª Vara Criminal de São Paulo\",\n    \"seqOrgaoPai\": 1,\n    \"tipoOrgao\": {\n      \"codigo\": \"VARE\",\n      \"descricao\": \"Vara Estadual\"\n    },\n    \"tribunal\": {\n      \"seqOrgao\": 8,\n      \"nome\": \"Tribunal de Justiça do Estado de São Paulo\",\n      \"sigla\": \"TJSP\",\n      \"esfera\": \"ESTADUAL\",\n      \"ufs\": [\"SP\"]\n    }\n  }\n}"
             },
             {
               "name": "400 - ID inválido",
@@ -198,67 +172,31 @@
               "body": "{\n  \"success\": false,\n  \"error\": \"Órgão não encontrado\"\n}"
             }
           ]
-        },
-        {
-          "name": "Buscar tribunal de um órgão",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/orgaos/:id/tribunal",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "orgaos", ":id", "tribunal"],
-              "variable": [
-                {
-                  "key": "id",
-                  "value": "456",
-                  "description": "SEQ_ORGAO do órgão"
-                }
-              ]
-            },
-            "description": "Dado um órgão (ex: uma vara), retorna o tribunal raiz ao qual pertence.\n\nNavega pela hierarquia de órgãos (via SEQ_ORGAO_PAI) até encontrar o tribunal raiz (órgão sem pai ou com DSC_ESFERA definida)."
-          },
-          "response": [
-            {
-              "name": "200 - Tribunal encontrado",
-              "status": "OK",
-              "code": 200,
-              "header": [{ "key": "Content-Type", "value": "application/json" }],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"seqOrgao\": 1,\n    \"nome\": \"Tribunal de Justiça do Estado de São Paulo\",\n    \"sigla\": \"TJSP\",\n    \"esfera\": \"ESTADUAL\",\n    \"uf\": \"SP\"\n  }\n}"
-            },
-            {
-              "name": "404 - Tribunal não encontrado",
-              "status": "Not Found",
-              "code": 404,
-              "header": [{ "key": "Content-Type", "value": "application/json" }],
-              "body": "{\n  \"success\": false,\n  \"error\": \"Tribunal não encontrado para o órgão informado\"\n}"
-            }
-          ]
         }
       ]
     },
     {
       "name": "Usuários",
-      "description": "Endpoints para consulta de usuários do sistema corporativo CNJ.",
+      "description": "Endpoints para consulta de usuários do sistema corporativo CNJ.\n\nBusca por CPF. Retorna apenas usuários ativos (FLG_ATIVO='S').",
       "item": [
         {
-          "name": "Buscar usuário por ID",
+          "name": "Buscar usuário por CPF",
           "request": {
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/usuarios/:id",
+              "raw": "{{baseUrl}}/api/usuarios/:cpf",
               "host": ["{{baseUrl}}"],
-              "path": ["api", "usuarios", ":id"],
+              "path": ["api", "usuarios", ":cpf"],
               "variable": [
                 {
-                  "key": "id",
-                  "value": "123",
-                  "description": "SEQ_USUARIO do usuário"
+                  "key": "cpf",
+                  "value": "12345678901",
+                  "description": "CPF do usuário (apenas dígitos)"
                 }
               ]
             },
-            "description": "Busca um usuário específico pelo seu ID (SEQ_USUARIO)."
+            "description": "Busca um usuário pelo CPF.\n\nRetorna dados do usuário ativo (FLG_ATIVO='S') com email (join usuario_email) e cargo (join tipo_cargo)."
           },
           "response": [
             {
@@ -266,14 +204,14 @@
               "status": "OK",
               "code": 200,
               "header": [{ "key": "Content-Type", "value": "application/json" }],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"seqUsuario\": 123,\n    \"nomUsuario\": \"João da Silva\",\n    \"numCpf\": \"12345678901\",\n    \"dscEmail\": \"joao.silva@cnj.jus.br\",\n    \"seqOrgao\": 456\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"seqUsuario\": 123,\n    \"nomUsuario\": \"João da Silva\",\n    \"numCpf\": \"12345678901\",\n    \"dscEmail\": \"joao.silva@cnj.jus.br\",\n    \"seqOrgao\": 456,\n    \"cargo\": {\n      \"sigla\": \"AJAJ\",\n      \"descricao\": \"Analista Judiciário - Área Judiciária\"\n    }\n  }\n}"
             },
             {
-              "name": "400 - ID inválido",
+              "name": "400 - CPF inválido",
               "status": "Bad Request",
               "code": 400,
               "header": [{ "key": "Content-Type", "value": "application/json" }],
-              "body": "{\n  \"success\": false,\n  \"error\": \"ID inválido\"\n}"
+              "body": "{\n  \"success\": false,\n  \"error\": \"CPF inválido\"\n}"
             },
             {
               "name": "404 - Não encontrado",

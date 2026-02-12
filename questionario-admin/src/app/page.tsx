@@ -14,13 +14,13 @@ export default async function HomePage() {
 
   return (
     <div className="flex h-screen bg-gray-50">
-      <Sidebar perfis={usuario.perfisAdmin} />
+      <Sidebar nomPerfil={usuario.nomPerfil} />
       
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header usuario={usuario} />
         
         <main className="flex-1 overflow-y-auto p-6">
-          <DashboardContent perfis={usuario.perfisAdmin} />
+          <DashboardContent nomPerfil={usuario.nomPerfil} />
         </main>
       </div>
     </div>

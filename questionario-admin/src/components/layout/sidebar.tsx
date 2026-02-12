@@ -4,7 +4,6 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { PerfilSistema } from '@/lib/auth/session';
 import {
   LayoutDashboard,
   FileText,
@@ -16,14 +15,14 @@ import {
 } from 'lucide-react';
 
 interface SidebarProps {
-  perfis: PerfilSistema[];
+  nomPerfil?: string;
 }
 
 interface NavItem {
   href: string;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
-  perfis: PerfilSistema[]; // Perfis que podem ver este item
+  perfis: string[]; // Perfis que podem ver este item
 }
 
 const navItems: NavItem[] = [
@@ -71,12 +70,13 @@ const navItems: NavItem[] = [
   },
 ];
 
-export function Sidebar({ perfis }: SidebarProps) {
+export function Sidebar({ nomPerfil }: SidebarProps) {
   const pathname = usePathname();
+  const perfilUpper = nomPerfil?.toUpperCase() ?? '';
 
-  // Filtrar itens de menu baseado nos perfis do usuário
+  // Filtrar itens de menu baseado no perfil do usuário
   const visibleItems = navItems.filter(item =>
-    item.perfis.some(p => perfis.includes(p))
+    item.perfis.some(p => p === perfilUpper)
   );
 
   return (

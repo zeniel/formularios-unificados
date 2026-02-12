@@ -37,7 +37,7 @@ export function middleware(request: NextRequest) {
   const sessionCookie = request.cookies.get(SESSION_COOKIE_NAME)?.value;
 
   if (!sessionCookie) {
-    // Sem sessão - redirecionar para corporativo
+    console.log(`[middleware] ${request.method} ${pathname} → sem cookie de sessão, redirecionando para: ${CORPORATIVO_URL}`);
     return NextResponse.redirect(CORPORATIVO_URL);
   }
 
@@ -46,12 +46,13 @@ export function middleware(request: NextRequest) {
 
     // Verificar se tem dados mínimos
     if (!session.usuario || !session.token) {
+      console.log(`[middleware] ${request.method} ${pathname} → sessão inválida (sem usuario/token), redirecionando`);
       return NextResponse.redirect(CORPORATIVO_URL);
     }
 
     // Verificar expiração
     if (Date.now() > session.expiresAt) {
-      // Sessão expirada - limpar cookie e redirecionar
+      console.log(`[middleware] ${request.method} ${pathname} → sessão expirada, redirecionando`);
       const response = NextResponse.redirect(CORPORATIVO_URL);
       response.cookies.delete(SESSION_COOKIE_NAME);
       return response;
@@ -59,8 +60,8 @@ export function middleware(request: NextRequest) {
 
     // Sessão válida - continuar
     return NextResponse.next();
-  } catch {
-    // Cookie inválido
+  } catch (err) {
+    console.log(`[middleware] ${request.method} ${pathname} → cookie inválido (parse error), redirecionando`);
     const response = NextResponse.redirect(CORPORATIVO_URL);
     response.cookies.delete(SESSION_COOKIE_NAME);
     return response;

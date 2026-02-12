@@ -7,10 +7,6 @@ import crypto from 'crypto';
 const SESSION_COOKIE_NAME = 'qadmin_session';
 const SESSION_MAX_AGE = 60 * 60 * 8; // 8 horas
 
-// Perfis do sistema - mapeados a partir do perfil corporativo
-// O perfil corporativo determina o que o usuário pode fazer no sistema admin
-export type PerfilSistema = 'ADMINISTRADOR' | 'VISUALIZADOR' | 'PESQUISADOR' | 'PESQUISADO';
-
 // Dados do usuário na sessão
 export interface UsuarioSessao {
   seqUsuario: number;
@@ -20,11 +16,9 @@ export interface UsuarioSessao {
   dscOrgao?: string;
   siglaOrgao?: string;
   ufOrgao?: string;
-  // Perfil vindo do corporativo
-  seqPerfilCorporativo?: number;
-  nomPerfilCorporativo?: string;
-  // Perfis mapeados para o sistema admin (derivados do perfil corporativo)
-  perfisAdmin: PerfilSistema[];
+  // Perfil vindo diretamente do corporativo (ex: ADMINISTRADOR)
+  seqPerfil?: number;
+  nomPerfil?: string;
 }
 
 // Dados completos da sessão
@@ -36,18 +30,44 @@ export interface SessionData {
 }
 
 /**
- * Cria uma nova sessão
+ * Monta os dados da sessão (sem setar cookie).
+ * Use setSessionCookie() para gravar no response.
  */
-export async function createSession(usuario: UsuarioSessao): Promise<string> {
+export function buildSessionData(usuario: UsuarioSessao): SessionData {
   const token = crypto.randomBytes(32).toString('hex');
   const now = Date.now();
 
-  const sessionData: SessionData = {
+  return {
     usuario,
     token,
     createdAt: now,
     expiresAt: now + SESSION_MAX_AGE * 1000,
   };
+}
+
+/**
+ * Grava o cookie de sessão diretamente em um NextResponse.
+ * Isso garante que o Set-Cookie seja incluído mesmo em redirects.
+ */
+export function setSessionCookie(
+  response: import('next/server').NextResponse,
+  sessionData: SessionData
+): void {
+  response.cookies.set(SESSION_COOKIE_NAME, JSON.stringify(sessionData), {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: SESSION_MAX_AGE,
+    path: '/',
+  });
+}
+
+/**
+ * Cria uma nova sessão (via cookies() do next/headers).
+ * Funciona em Server Components e Route Handlers que NÃO retornam NextResponse customizado.
+ */
+export async function createSession(usuario: UsuarioSessao): Promise<string> {
+  const sessionData = buildSessionData(usuario);
 
   const cookieStore = await cookies();
   cookieStore.set(SESSION_COOKIE_NAME, JSON.stringify(sessionData), {
@@ -58,7 +78,7 @@ export async function createSession(usuario: UsuarioSessao): Promise<string> {
     path: '/',
   });
 
-  return token;
+  return sessionData.token;
 }
 
 /**
@@ -96,20 +116,21 @@ export async function getUsuario(): Promise<UsuarioSessao | null> {
 }
 
 /**
- * Verifica se o usuário tem um perfil específico
+ * Verifica se o usuário tem o perfil especificado (comparação case-insensitive)
  */
-export async function hasPerfilAdmin(perfil: PerfilSistema): Promise<boolean> {
+export async function hasPerfil(perfil: string): Promise<boolean> {
   const usuario = await getUsuario();
-  return usuario?.perfisAdmin?.includes(perfil) ?? false;
+  return usuario?.nomPerfil?.toUpperCase() === perfil.toUpperCase();
 }
 
 /**
  * Verifica se o usuário tem algum dos perfis especificados
  */
-export async function hasAnyPerfilAdmin(perfis: PerfilSistema[]): Promise<boolean> {
+export async function hasAnyPerfil(perfis: string[]): Promise<boolean> {
   const usuario = await getUsuario();
-  if (!usuario?.perfisAdmin) return false;
-  return perfis.some(p => usuario.perfisAdmin.includes(p));
+  if (!usuario?.nomPerfil) return false;
+  const upper = usuario.nomPerfil.toUpperCase();
+  return perfis.some(p => p.toUpperCase() === upper);
 }
 
 /**
@@ -142,10 +163,11 @@ export async function requireAuth(): Promise<SessionData> {
 /**
  * Helper para verificar permissão em Server Components
  */
-export async function requirePerfil(perfis: PerfilSistema[]): Promise<SessionData> {
+export async function requirePerfil(perfis: string[]): Promise<SessionData> {
   const session = await requireAuth();
-  const hasPerfil = perfis.some(p => session.usuario.perfisAdmin?.includes(p));
-  if (!hasPerfil) {
+  const upper = session.usuario.nomPerfil?.toUpperCase() ?? '';
+  const temPerfil = perfis.some(p => p.toUpperCase() === upper);
+  if (!temPerfil) {
     throw new Error('Sem permissão');
   }
   return session;

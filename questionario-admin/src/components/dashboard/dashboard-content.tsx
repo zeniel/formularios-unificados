@@ -2,11 +2,10 @@
 'use client';
 
 import Link from 'next/link';
-import { PerfilSistema } from '@/lib/auth/session';
 import { FileText, HelpCircle, FolderTree, Plus, BarChart3 } from 'lucide-react';
 
 interface DashboardContentProps {
-  perfis: PerfilSistema[];
+  nomPerfil?: string;
 }
 
 interface StatCard {
@@ -18,8 +17,9 @@ interface StatCard {
   color: string;
 }
 
-export function DashboardContent({ perfis }: DashboardContentProps) {
-  const canCreate = perfis.includes('ADMINISTRADOR') || perfis.includes('PESQUISADOR');
+export function DashboardContent({ nomPerfil }: DashboardContentProps) {
+  const perfilUpper = nomPerfil?.toUpperCase() ?? '';
+  const canCreate = perfilUpper === 'ADMINISTRADOR' || perfilUpper === 'PESQUISADOR';
 
   // TODO: Buscar estatísticas reais via API
   const stats: StatCard[] = [

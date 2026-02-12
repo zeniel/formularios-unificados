@@ -14,22 +14,27 @@ export async function GET(request: NextRequest) {
 
   // Parâmetros opcionais (para consultar outro usuário - só admin)
   const searchParams = request.nextUrl.searchParams;
-  const seqUsuario = searchParams.get('usuario') 
-    ? parseInt(searchParams.get('usuario')!, 10) 
-    : session.usuario.seqUsuario;
+  const cpf = searchParams.get('cpf') || session.usuario.numCpf;
   const seqOrgao = searchParams.get('orgao')
     ? parseInt(searchParams.get('orgao')!, 10)
     : session.usuario.seqOrgao;
 
   // Se está consultando outro usuário, verificar permissão
-  if (seqUsuario !== session.usuario.seqUsuario) {
-    const isAdmin = session.usuario.perfisAdmin?.includes('ADMINISTRADOR');
+  if (cpf !== session.usuario.numCpf) {
+    const isAdmin = session.usuario.nomPerfil?.toUpperCase() === 'ADMINISTRADOR';
     if (!isAdmin) {
       return NextResponse.json(
         { error: 'Sem permissão para consultar outro usuário' }, 
         { status: 403 }
       );
     }
+  }
+
+  if (!cpf) {
+    return NextResponse.json(
+      { error: 'CPF não informado' }, 
+      { status: 400 }
+    );
   }
 
   if (!seqOrgao) {
@@ -41,7 +46,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const client = getCorporativoClient();
-    const contexto = await client.getContextoUsuario(seqUsuario, seqOrgao);
+    const contexto = await client.getContextoUsuario(cpf, seqOrgao);
 
     if (!contexto) {
       return NextResponse.json(

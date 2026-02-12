@@ -11,7 +11,7 @@ interface HeaderProps {
 export function Header({ usuario }: HeaderProps) {
   return (
     <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6">
-      {/* Título da página (pode ser dinâmico via contexto/props) */}
+      {/* Título da página */}
       <div>
         <h1 className="text-xl font-semibold text-gray-900">
           Administração de Questionários
@@ -20,17 +20,12 @@ export function Header({ usuario }: HeaderProps) {
 
       {/* User menu */}
       <div className="flex items-center space-x-4">
-        {/* Perfis */}
-        <div className="hidden md:flex items-center space-x-2">
-          {usuario.perfisAdmin.map(perfil => (
-            <span
-              key={perfil}
-              className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800"
-            >
-              {perfil}
-            </span>
-          ))}
-        </div>
+        {/* Perfil */}
+        {usuario.nomPerfil && (
+          <span className="hidden md:inline-flex px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
+            {usuario.nomPerfil}
+          </span>
+        )}
 
         {/* User info */}
         <div className="flex items-center space-x-3">
