@@ -424,6 +424,63 @@ export function FormularioForm({ questionario }: FormularioFormProps) {
           </div>
         </div>
 
+        {/* Escopo — seleção de tribunais (condicional ao escopo TRIBUNAL) */}
+        {escopo === 'TRIBUNAL' && !isEditing && (
+          <div className="border border-blue-200 bg-blue-50/30 rounded-lg p-4">
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Tribunais Participantes
+              </label>
+              <button
+                type="button"
+                onClick={() => setModalTribunaisAberto(true)}
+                className="inline-flex items-center gap-1 px-3 py-1.5 text-xs text-blue-600 border border-blue-300 rounded-lg hover:bg-blue-50"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Selecionar Tribunais
+              </button>
+            </div>
+            {escopoTribunais.length > 0 ? (
+              <TribunaisResumo
+                ids={escopoTribunais}
+                onRemove={(id) => setEscopoTribunais(prev => prev.filter(t => t !== id))}
+              />
+            ) : (
+              <p className="text-xs text-gray-400">
+                Nenhum tribunal selecionado. O formulário ficará disponível para todos os tribunais.
+              </p>
+            )}
+
+            {modalTribunaisAberto && (
+              <TribunalSelectorModal
+                selectedIds={escopoTribunais}
+                onConfirm={(ids) => {
+                  setEscopoTribunais(ids);
+                  setModalTribunaisAberto(false);
+                }}
+                onClose={() => setModalTribunaisAberto(false)}
+              />
+            )}
+          </div>
+        )}
+
+        {/* Escopo — seleção de órgãos (condicional ao escopo ORGAO) */}
+        {escopo === 'ORGAO' && !isEditing && (
+          <div className="border border-blue-200 bg-blue-50/30 rounded-lg p-4">
+            <OrgaoSelector
+              tribunalSelecionado={tribunalRef}
+              onTribunalChange={(t) => {
+                setTribunalRef(t);
+                if (!t || t.seqOrgao !== tribunalRef?.seqOrgao) {
+                  setEscopoOrgaos([]);
+                }
+              }}
+              orgaosSelecionados={escopoOrgaos}
+              onOrgaosChange={setEscopoOrgaos}
+            />
+          </div>
+        )}
+
         {/* Prazo — dinâmico por periodicidade (apenas para periódicos) */}
         {!isSobDemanda && periodicidade > 0 && (
           <>
@@ -511,61 +568,6 @@ export function FormularioForm({ questionario }: FormularioFormProps) {
               <p className="text-xs text-gray-400 mt-1">Opcional - se não informada, o formulário permanece ativo indefinidamente</p>
             </div>
           </div>
-        )}
-
-        {/* Escopo — seleção de tribunais/órgãos (condicional ao tipo de escopo) */}
-        {escopo === 'TRIBUNAL' && !isEditing && (
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="block text-sm font-medium text-gray-700">
-                Tribunais Participantes
-              </label>
-              <button
-                type="button"
-                onClick={() => setModalTribunaisAberto(true)}
-                className="inline-flex items-center gap-1 px-3 py-1.5 text-xs text-blue-600 border border-blue-300 rounded-lg hover:bg-blue-50"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                Selecionar Tribunais
-              </button>
-            </div>
-            {escopoTribunais.length > 0 ? (
-              <TribunaisResumo
-                ids={escopoTribunais}
-                onRemove={(id) => setEscopoTribunais(prev => prev.filter(t => t !== id))}
-              />
-            ) : (
-              <p className="text-xs text-gray-400">
-                Nenhum tribunal selecionado. O formulário ficará disponível para todos os tribunais.
-              </p>
-            )}
-
-            {modalTribunaisAberto && (
-              <TribunalSelectorModal
-                selectedIds={escopoTribunais}
-                onConfirm={(ids) => {
-                  setEscopoTribunais(ids);
-                  setModalTribunaisAberto(false);
-                }}
-                onClose={() => setModalTribunaisAberto(false)}
-              />
-            )}
-          </div>
-        )}
-
-        {escopo === 'ORGAO' && !isEditing && (
-          <OrgaoSelector
-            tribunalSelecionado={tribunalRef}
-            onTribunalChange={(t) => {
-              setTribunalRef(t);
-              // Limpar órgãos ao trocar tribunal
-              if (!t || t.seqOrgao !== tribunalRef?.seqOrgao) {
-                setEscopoOrgaos([]);
-              }
-            }}
-            orgaosSelecionados={escopoOrgaos}
-            onOrgaosChange={setEscopoOrgaos}
-          />
         )}
 
         {/* Observação */}

@@ -60,9 +60,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    if (!isSobDemanda && !body.NUM_MES_LIMITE) {
+    if (!isSobDemanda && !body.SEQ_TIPO_PERIODICIDADE_PERGUNTA) {
       return NextResponse.json(
-        { error: 'Campos obrigatórios para periódicos: SEQ_TIPO_PERIODICIDADE_PERGUNTA, NUM_MES_LIMITE' },
+        { error: 'Campo obrigatório para periódicos: SEQ_TIPO_PERIODICIDADE_PERGUNTA' },
         { status: 400 }
       );
     }

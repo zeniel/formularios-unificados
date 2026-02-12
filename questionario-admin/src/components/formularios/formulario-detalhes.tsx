@@ -89,7 +89,8 @@ function calcularPeriodoReferencia(q: QuestionarioCompleto): { periodoRef: strin
   const cod = q.SEQ_TIPO_PERIODICIDADE_PERGUNTA;
 
   function formatarDataLimite(ano: number, mes: number, dia: number | null): string {
-    const d = dia ?? ultimoDiaDoMes(ano, mes);
+    const ultimoDia = ultimoDiaDoMes(ano, mes);
+    const d = (dia === null || dia < 1 || dia > 31) ? ultimoDia : Math.min(dia, ultimoDia);
     return `${String(d).padStart(2, '0')}/${String(mes).padStart(2, '0')}/${ano}`;
   }
 
