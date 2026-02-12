@@ -1,0 +1,251 @@
+{
+  "info": {
+    "_postman_id": "qadmin-001",
+    "name": "Questionário Admin API",
+    "description": "API do sistema de administração de questionários do CNJ.\n\nEste serviço roda na porta 3000 e expõe endpoints para autenticação via credencial corporativa e consulta de dados do corporativo.\n\n## Autenticação\n\nA maioria dos endpoints requer sessão ativa. O fluxo é:\n1. Portal corporativo redireciona para `/auth/callback?c=CREDENCIAL`\n2. Sistema valida credencial e cria cookie `qadmin_session`\n3. Requests subsequentes enviam o cookie automaticamente\n\nO cookie `qadmin_session` tem TTL de 8 horas.\n\n## Perfis\n\n| Perfil | Permissões |\n|--------|------------|\n| ADMINISTRADOR | Acesso total |\n| PESQUISADOR | Criar/editar questionários |\n| VISUALIZADOR | Apenas leitura |\n| PESQUISADO | Responder formulários |",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "corporativoUrl",
+      "value": "https://www.cnj.jus.br/corporativo",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Autenticação",
+      "description": "Fluxo de autenticação via credencial corporativa CNJ (SCA).\n\nA credencial é uma string Base64 + hash MD5 com separador `SEPARADORCREDENCIALCNJ`.\n\nConteúdo da credencial: seqUsuario, seqOrgao, seqPerfil, timeToLive.",
+      "item": [
+        {
+          "name": "Login (callback credencial)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/callback?c=CREDENCIAL_BASE64_AQUI",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "callback"],
+              "query": [
+                {
+                  "key": "c",
+                  "value": "CREDENCIAL_BASE64_AQUI",
+                  "description": "Credencial corporativa CNJ. Formato: Base64(dados + SEPARADORCREDENCIALCNJ + hash_MD5). Contém seqUsuario, seqOrgao, seqPerfil, timeToLive."
+                }
+              ]
+            },
+            "description": "Endpoint de callback chamado pelo portal corporativo CNJ após login.\n\nRecebe a credencial no query param `c`, valida, cria sessão e redireciona para a home (`/`).\n\n**Fluxo:**\n1. Valida credencial (Base64 + MD5)\n2. Extrai dados: seqUsuario, seqOrgao, seqPerfil\n3. Mapeia perfil corporativo → perfil admin\n4. Busca dados do órgão via corporativo\n5. Cria cookie `qadmin_session` (httpOnly, 8h TTL)\n6. Redireciona para `/`\n\n**Nota:** Este endpoint é público (não requer sessão prévia)."
+          },
+          "response": [
+            {
+              "name": "302 - Login OK (redireciona para /)",
+              "status": "Found",
+              "code": 302,
+              "header": [
+                { "key": "Location", "value": "/" },
+                { "key": "Set-Cookie", "value": "qadmin_session=eyJ...; Path=/; HttpOnly; SameSite=Lax" }
+              ],
+              "body": ""
+            },
+            {
+              "name": "302 - Credencial inválida (redireciona para /auth/erro)",
+              "status": "Found",
+              "code": 302,
+              "header": [
+                { "key": "Location", "value": "/auth/erro?msg=Credencial+inv%C3%A1lida+ou+expirada." }
+              ],
+              "body": ""
+            },
+            {
+              "name": "302 - Sem permissão",
+              "status": "Found",
+              "code": 302,
+              "header": [
+                { "key": "Location", "value": "/auth/erro?msg=Usu%C3%A1rio+sem+permiss%C3%A3o+para+acessar+o+sistema." }
+              ],
+              "body": ""
+            }
+          ]
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/sair",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "sair"]
+            },
+            "description": "Destrói a sessão do usuário (remove cookie `qadmin_session`) e redireciona para o portal corporativo CNJ.\n\n**Nota:** Este endpoint é público."
+          },
+          "response": [
+            {
+              "name": "302 - Sessão destruída (redireciona para corporativo)",
+              "status": "Found",
+              "code": 302,
+              "header": [
+                { "key": "Location", "value": "{{corporativoUrl}}" },
+                { "key": "Set-Cookie", "value": "qadmin_session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT" }
+              ],
+              "body": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Corporativo",
+      "description": "Endpoints para consulta de dados do sistema corporativo CNJ.\n\nTodos os endpoints requerem sessão ativa (cookie `qadmin_session`).",
+      "item": [
+        {
+          "name": "Obter contexto do usuário",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/corporativo/contexto",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "corporativo", "contexto"]
+            },
+            "description": "Retorna o contexto completo do usuário logado: dados do usuário, órgão e tribunal.\n\nUsado para preencher perguntas ocultas (Expression Language) e avaliar filtros de visibilidade.\n\n**Requer sessão ativa.**"
+          },
+          "response": [
+            {
+              "name": "200 - Contexto do usuário logado",
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"usuario\": {\n      \"id\": 123,\n      \"nome\": \"João da Silva\",\n      \"cpf\": \"12345678901\",\n      \"email\": \"joao.silva@cnj.jus.br\"\n    },\n    \"orgao\": {\n      \"id\": 456,\n      \"descricao\": \"1ª Vara Criminal de São Paulo\",\n      \"sigla\": \"1VCSP\",\n      \"tipo\": \"VARA\",\n      \"orgaoPaiId\": 1\n    },\n    \"tribunal\": {\n      \"id\": 1,\n      \"sigla\": \"TJSP\",\n      \"descricao\": \"Tribunal de Justiça do Estado de São Paulo\",\n      \"esfera\": \"ESTADUAL\",\n      \"uf\": \"SP\",\n      \"regiao\": \"SUDESTE\",\n      \"porte\": \"GRANDE\"\n    }\n  }\n}"
+            },
+            {
+              "name": "401 - Não autenticado",
+              "status": "Unauthorized",
+              "code": 401,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": false,\n  \"error\": \"Não autenticado\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Obter contexto de outro usuário (admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/corporativo/contexto?usuario=789&orgao=456",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "corporativo", "contexto"],
+              "query": [
+                {
+                  "key": "usuario",
+                  "value": "789",
+                  "description": "SEQ_USUARIO de outro usuário (apenas ADMINISTRADOR)"
+                },
+                {
+                  "key": "orgao",
+                  "value": "456",
+                  "description": "SEQ_ORGAO do órgão desejado"
+                }
+              ]
+            },
+            "description": "Retorna o contexto de um usuário específico. **Requer perfil ADMINISTRADOR.**\n\nSe os query params `usuario` e `orgao` não forem informados, retorna o contexto do usuário logado."
+          },
+          "response": [
+            {
+              "name": "200 - Contexto de outro usuário",
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"usuario\": {\n      \"id\": 789,\n      \"nome\": \"Maria Santos\",\n      \"cpf\": \"98765432100\",\n      \"email\": \"maria.santos@cnj.jus.br\"\n    },\n    \"orgao\": {\n      \"id\": 456,\n      \"descricao\": \"1ª Vara Criminal de São Paulo\",\n      \"tipo\": \"VARA\"\n    },\n    \"tribunal\": {\n      \"id\": 1,\n      \"sigla\": \"TJSP\",\n      \"descricao\": \"Tribunal de Justiça do Estado de São Paulo\",\n      \"esfera\": \"ESTADUAL\",\n      \"uf\": \"SP\"\n    }\n  }\n}"
+            },
+            {
+              "name": "403 - Sem permissão de admin",
+              "status": "Forbidden",
+              "code": 403,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": false,\n  \"error\": \"Apenas administradores podem consultar outros usuários\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Listar tribunais",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/corporativo/tribunais",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "corporativo", "tribunais"]
+            },
+            "description": "Lista todos os tribunais disponíveis no sistema corporativo.\n\n**Requer sessão ativa.**"
+          },
+          "response": [
+            {
+              "name": "200 - Lista de tribunais",
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": 1,\n      \"sigla\": \"TJSP\",\n      \"descricao\": \"Tribunal de Justiça do Estado de São Paulo\",\n      \"esfera\": \"ESTADUAL\",\n      \"uf\": \"SP\",\n      \"regiao\": \"SUDESTE\"\n    },\n    {\n      \"id\": 2,\n      \"sigla\": \"TJRJ\",\n      \"descricao\": \"Tribunal de Justiça do Estado do Rio de Janeiro\",\n      \"esfera\": \"ESTADUAL\",\n      \"uf\": \"RJ\",\n      \"regiao\": \"SUDESTE\"\n    }\n  ]\n}"
+            },
+            {
+              "name": "401 - Não autenticado",
+              "status": "Unauthorized",
+              "code": 401,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": false,\n  \"error\": \"Não autenticado\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Listar órgãos de um tribunal",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/corporativo/tribunais/:id/orgaos",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "corporativo", "tribunais", ":id", "orgaos"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "1",
+                  "description": "ID do tribunal (SEQ_ORGAO)"
+                }
+              ]
+            },
+            "description": "Lista todos os órgãos pertencentes a um tribunal específico (varas, comarcas, departamentos, etc.).\n\n**Requer sessão ativa.**"
+          },
+          "response": [
+            {
+              "name": "200 - Órgãos do tribunal",
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": 100,\n      \"descricao\": \"Corregedoria-Geral da Justiça\",\n      \"sigla\": \"CGJ\",\n      \"orgaoPaiId\": 1\n    },\n    {\n      \"id\": 456,\n      \"descricao\": \"1ª Vara Criminal de São Paulo\",\n      \"sigla\": \"1VCSP\",\n      \"orgaoPaiId\": 1\n    }\n  ]\n}"
+            },
+            {
+              "name": "400 - ID inválido",
+              "status": "Bad Request",
+              "code": 400,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": false,\n  \"error\": \"ID inválido\"\n}"
+            },
+            {
+              "name": "401 - Não autenticado",
+              "status": "Unauthorized",
+              "code": 401,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": false,\n  \"error\": \"Não autenticado\"\n}"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

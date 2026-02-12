@@ -1,0 +1,290 @@
+{
+  "info": {
+    "_postman_id": "corp-proxy-001",
+    "name": "Corporativo Proxy API",
+    "description": "API proxy para acesso ao banco corporativo do CNJ.\n\nEste serviço roda na porta 3001 e expõe endpoints REST para consulta de dados de tribunais, órgãos e usuários do sistema corporativo.\n\nTodas as respostas seguem o formato:\n```json\n{\n  \"success\": true|false,\n  \"data\": { ... },\n  \"error\": \"mensagem de erro (quando success=false)\"\n}\n```",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3001",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Tribunais",
+      "description": "Endpoints para consulta de tribunais do Poder Judiciário.",
+      "item": [
+        {
+          "name": "Listar tribunais",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/tribunais",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "tribunais"]
+            },
+            "description": "Lista todos os tribunais cadastrados no sistema corporativo.\n\nRetorna tribunais ordenados por esfera, UF e sigla."
+          },
+          "response": [
+            {
+              "name": "200 - Lista completa",
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"seqOrgao\": 1,\n      \"nome\": \"Tribunal de Justiça do Estado de São Paulo\",\n      \"sigla\": \"TJSP\",\n      \"esfera\": \"ESTADUAL\",\n      \"uf\": \"SP\"\n    },\n    {\n      \"seqOrgao\": 2,\n      \"nome\": \"Tribunal Regional Federal da 3ª Região\",\n      \"sigla\": \"TRF3\",\n      \"esfera\": \"FEDERAL\",\n      \"uf\": \"SP\"\n    }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "Listar tribunais (filtro por esfera)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/tribunais?esfera=ESTADUAL",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "tribunais"],
+              "query": [
+                {
+                  "key": "esfera",
+                  "value": "ESTADUAL",
+                  "description": "Filtra por esfera da justiça. Valores: ESTADUAL, FEDERAL, TRABALHO, ELEITORAL, MILITAR, SUPERIOR"
+                }
+              ]
+            },
+            "description": "Lista tribunais filtrados por esfera da justiça."
+          },
+          "response": []
+        },
+        {
+          "name": "Listar tribunais (filtro por UF)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/tribunais?uf=SP",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "tribunais"],
+              "query": [
+                {
+                  "key": "uf",
+                  "value": "SP",
+                  "description": "Filtra por UF. Valores: AC, AL, AM, AP, BA, CE, DF, ES, GO, MA, MG, MS, MT, PA, PB, PE, PI, PR, RJ, RN, RO, RR, RS, SC, SE, SP, TO"
+                }
+              ]
+            },
+            "description": "Lista tribunais filtrados por UF."
+          },
+          "response": []
+        },
+        {
+          "name": "Listar tribunais (filtro combinado)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/tribunais?esfera=ESTADUAL&uf=SP",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "tribunais"],
+              "query": [
+                {
+                  "key": "esfera",
+                  "value": "ESTADUAL",
+                  "description": "Esfera da justiça"
+                },
+                {
+                  "key": "uf",
+                  "value": "SP",
+                  "description": "Unidade federativa"
+                }
+              ]
+            },
+            "description": "Lista tribunais filtrando por esfera E UF ao mesmo tempo."
+          },
+          "response": []
+        },
+        {
+          "name": "Buscar tribunal por ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/tribunais/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "tribunais", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "1",
+                  "description": "SEQ_ORGAO do tribunal"
+                }
+              ]
+            },
+            "description": "Busca um tribunal específico pelo seu ID (SEQ_ORGAO)."
+          },
+          "response": [
+            {
+              "name": "200 - Tribunal encontrado",
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"seqOrgao\": 1,\n    \"nome\": \"Tribunal de Justiça do Estado de São Paulo\",\n    \"sigla\": \"TJSP\",\n    \"esfera\": \"ESTADUAL\",\n    \"uf\": \"SP\",\n    \"porte\": \"GRANDE\"\n  }\n}"
+            },
+            {
+              "name": "400 - ID inválido",
+              "status": "Bad Request",
+              "code": 400,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": false,\n  \"error\": \"ID inválido\"\n}"
+            },
+            {
+              "name": "404 - Não encontrado",
+              "status": "Not Found",
+              "code": 404,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": false,\n  \"error\": \"Tribunal não encontrado\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Órgãos",
+      "description": "Endpoints para consulta de órgãos do Poder Judiciário (varas, comarcas, departamentos, etc.).",
+      "item": [
+        {
+          "name": "Buscar órgão por ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/orgaos/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "orgaos", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "456",
+                  "description": "SEQ_ORGAO do órgão"
+                }
+              ]
+            },
+            "description": "Busca um órgão específico pelo seu ID (SEQ_ORGAO)."
+          },
+          "response": [
+            {
+              "name": "200 - Órgão encontrado",
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"seqOrgao\": 456,\n    \"dscOrgao\": \"1ª Vara Criminal de São Paulo\",\n    \"seqOrgaoPai\": 1,\n    \"tipo\": \"VARA\"\n  }\n}"
+            },
+            {
+              "name": "400 - ID inválido",
+              "status": "Bad Request",
+              "code": 400,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": false,\n  \"error\": \"ID inválido\"\n}"
+            },
+            {
+              "name": "404 - Não encontrado",
+              "status": "Not Found",
+              "code": 404,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": false,\n  \"error\": \"Órgão não encontrado\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Buscar tribunal de um órgão",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/orgaos/:id/tribunal",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "orgaos", ":id", "tribunal"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "456",
+                  "description": "SEQ_ORGAO do órgão"
+                }
+              ]
+            },
+            "description": "Dado um órgão (ex: uma vara), retorna o tribunal raiz ao qual pertence.\n\nNavega pela hierarquia de órgãos (via SEQ_ORGAO_PAI) até encontrar o tribunal raiz (órgão sem pai ou com DSC_ESFERA definida)."
+          },
+          "response": [
+            {
+              "name": "200 - Tribunal encontrado",
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"seqOrgao\": 1,\n    \"nome\": \"Tribunal de Justiça do Estado de São Paulo\",\n    \"sigla\": \"TJSP\",\n    \"esfera\": \"ESTADUAL\",\n    \"uf\": \"SP\"\n  }\n}"
+            },
+            {
+              "name": "404 - Tribunal não encontrado",
+              "status": "Not Found",
+              "code": 404,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": false,\n  \"error\": \"Tribunal não encontrado para o órgão informado\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Usuários",
+      "description": "Endpoints para consulta de usuários do sistema corporativo CNJ.",
+      "item": [
+        {
+          "name": "Buscar usuário por ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/usuarios/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "usuarios", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "123",
+                  "description": "SEQ_USUARIO do usuário"
+                }
+              ]
+            },
+            "description": "Busca um usuário específico pelo seu ID (SEQ_USUARIO)."
+          },
+          "response": [
+            {
+              "name": "200 - Usuário encontrado",
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"seqUsuario\": 123,\n    \"nomUsuario\": \"João da Silva\",\n    \"numCpf\": \"12345678901\",\n    \"dscEmail\": \"joao.silva@cnj.jus.br\",\n    \"seqOrgao\": 456\n  }\n}"
+            },
+            {
+              "name": "400 - ID inválido",
+              "status": "Bad Request",
+              "code": 400,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": false,\n  \"error\": \"ID inválido\"\n}"
+            },
+            {
+              "name": "404 - Não encontrado",
+              "status": "Not Found",
+              "code": 404,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": false,\n  \"error\": \"Usuário não encontrado\"\n}"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
