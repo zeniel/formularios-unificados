@@ -155,6 +155,53 @@ function getStatusSobDemanda(q: QuestionarioCompleto): { label: string; ativo: b
 
 import { PerguntasSection } from './perguntas/perguntas-section';
 
+// Resolução de nomes de órgãos/tribunais via corporativo-proxy
+function OrgaosVinculados({ ids }: { ids: number[] }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ['corporativo-orgaos-nomes', ids],
+    queryFn: async () => {
+      const results = await Promise.all(
+        ids.map(async (id) => {
+          try {
+            const res = await fetch(`/api/corporativo/orgaos/${id}`);
+            if (!res.ok) return { id, nome: null };
+            const json = await res.json();
+            const orgao = json.data;
+            // Se o órgão tem tribunal com sigla, é um órgão; senão é o próprio tribunal
+            const nome = orgao.tribunal?.sigla
+              ? `${orgao.dscOrgao} (${orgao.tribunal.sigla})`
+              : orgao.dscOrgao;
+            return { id, nome };
+          } catch {
+            return { id, nome: null };
+          }
+        })
+      );
+      return results;
+    },
+    staleTime: 5 * 60 * 1000, // Cache 5 min
+  });
+
+  if (isLoading) {
+    return <span className="text-gray-400">Carregando...</span>;
+  }
+
+  const nomes = data ?? ids.map(id => ({ id, nome: null }));
+
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {nomes.map(({ id, nome }) => (
+        <span
+          key={id}
+          className="inline-block px-2 py-0.5 bg-gray-100 text-gray-700 rounded-full"
+        >
+          {nome ?? `#${id}`}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 interface FormularioDetalhesProps {
   id: number;
   nomPerfil?: string;
@@ -354,13 +401,17 @@ export function FormularioDetalhes({ id, nomPerfil }: FormularioDetalhesProps) {
               </dd>
             </div>
 
-            {q.escopoOrgaos.length > 0 && (
+            {(q.COD_ESCOPO_RESPOSTA === 'TRIBUNAL' || q.COD_ESCOPO_RESPOSTA === 'ORGAO') && (
               <div>
                 <dt className="text-sm text-gray-500 mb-1">
-                  {q.COD_ESCOPO_RESPOSTA === 'TRIBUNAL' ? 'Tribunais' : 'Órgãos'} vinculados ({q.escopoOrgaos.length})
+                  {q.COD_ESCOPO_RESPOSTA === 'TRIBUNAL' ? 'Tribunais' : 'Órgãos'} vinculados
                 </dt>
                 <dd className="text-xs text-gray-600">
-                  {q.escopoOrgaos.map(id => `#${id}`).join(', ')}
+                  {q.escopoOrgaos.length === 0 ? (
+                    <span className="text-gray-400">Todos</span>
+                  ) : (
+                    <OrgaosVinculados ids={q.escopoOrgaos} />
+                  )}
                 </dd>
               </div>
             )}
